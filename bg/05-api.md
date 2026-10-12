@@ -217,3 +217,17 @@ message StreamStatus {
   uint32 http_ts_clients = 8;
 }
 ```
+
+Пълният договор е в кода: `TVRestreamer_Code/tvr-common/src/main/proto/tvr/agent/v1/agent.proto` (TVR-008). Java пакет `io.tvr.agent.proto.v1`; класовете се генерират при `./gradlew :tvr-common:build`.
+
+| Посока | Съобщение | Кога |
+|---|---|---|
+| агент → core | `Hello` | Първо съобщение след свързване: node_id, версии, capabilities, последна приложена версия, вече работещи потоци |
+| агент → core | `Heartbeat`, `NodeMetrics` | Периодично (CPU, памет, мрежа, tmpfs) |
+| агент → core | `StreamStatus`, `StreamEvent` | Състояние на канал; събития (FAILOVER, INPUT_LOST, PROCESS_EXITED…) |
+| агент → core | `LogLines` | Само след `SubscribeLogs` |
+| агент → core | `AckDesiredState` | Потвърждение на приложена версия (+ грешки по канали) |
+| core → агент | `DesiredState` | Пълен snapshot на каналите за този node (`StreamSpec` → `InputSpec`, `OutputSpec`) |
+| core → агент | `Command` | `RestartStream`, `SwitchInput`, `KickClient`, `SubscribeLogs` |
+
+**Съвместимост:** номерата и типовете на полетата не се сменят; изтрити полета стават `reserved`; нулевата стойност на всеки enum е `*_UNSPECIFIED`; несъвместима промяна = пакет `tvr.agent.v2`.
