@@ -1,0 +1,32 @@
+flowchart TB
+    subgraph Internet
+      U((Subscribers))
+      ADM((Admins<br/>VPN / allowed IPs))
+      PRV[(Providers)]
+    end
+    DNS[DNS tv.example.com<br/>round-robin / GeoDNS]
+    U --> DNS
+    DNS --> E1 & E2 & E3
+    subgraph DC[Data center]
+      subgraph CP[cp-1 · Control plane]
+        NGA[nginx admin TLS] --> CORE[tvr-core]
+        CORE --> PG[(PostgreSQL)]
+        CORE --> RD[(Redis)]
+        GRA[Prometheus · Grafana · Alertmanager]
+      end
+      subgraph ING[Ingest]
+        I1[ingest-1<br/>tvr-agent + FFmpeg + nginx origin]
+        I2[ingest-2<br/>tvr-agent + FFmpeg + nginx origin]
+      end
+      subgraph EDGE[Edge]
+        E1[edge-1 nginx]
+        E2[edge-2 nginx]
+        E3[edge-3 nginx]
+      end
+    end
+    ADM --> NGA
+    PRV --> I1 & I2
+    E1 & E2 & E3 -- HLS/TS --> I1 & I2
+    E1 & E2 & E3 -- auth_request --> CORE
+    I1 & I2 <-- gRPC mTLS --> CORE
+    GRA -. scrape .-> CORE & I1 & I2 & E1 & E2 & E3

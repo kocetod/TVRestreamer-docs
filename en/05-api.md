@@ -1,0 +1,219 @@
+# 05 · API Specification
+
+[← Index](00-README.md) · [Български](../bg/05-api.md) · Machine-readable contract: [openapi.yaml](../api/openapi.yaml)
+
+## 1. General rules
+
+| Topic | Rule |
+|---|---|
+| Base URL | `https://admin.example.com/api/v1` |
+| Format | JSON (UTF-8), ISO-8601 UTC dates, UUID IDs |
+| Authentication | `Authorization: Bearer <JWT>` (admin session) or `X-API-Key: tvr_xxx` (integrations) |
+| Pagination | `?page=0&size=50&sort=name,asc` → `{items, page, size, total}` |
+| Filters | Query parameters, e.g. `?status=ONLINE&nodeId=...&q=btv` |
+| Errors | RFC 9457 Problem Details: `{type, title, status, detail, errors:[{field, message}]}` |
+| Versioning | In the path (`/v1`). Breaking changes → `/v2` |
+| Optimistic locking | `version` in the body; on conflict → `409 Conflict` |
+| Rate limit | 20 requests/s per API key; `429` with `Retry-After` |
+| Real time | `GET /api/v1/events` (Server-Sent Events) |
+
+## 2. Endpoints
+
+### 2.1 Admin authentication
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/auth/login` | `{email, password, totp?}` → `{accessToken, refreshToken}` |
+| POST | `/auth/refresh` | New access token |
+| POST | `/auth/logout` | Revokes refresh token |
+| GET | `/auth/me` | Current user and role |
+| POST | `/auth/2fa/setup` · `/auth/2fa/verify` | TOTP setup |
+
+### 2.2 Streams
+
+| Method | Path | Description | Role |
+|---|---|---|---|
+| GET | `/streams` | List (filters: `status, categoryId, nodeId, packageId, q`) | Viewer+ |
+| POST | `/streams` | Create (with inputs and outputs) | Operator+ |
+| GET | `/streams/{id}` | Detail + current status | Viewer+ |
+| PUT | `/streams/{id}` | Full update (`version` required) | Operator+ |
+| DELETE | `/streams/{id}` | Soft delete | Operator+ |
+| POST | `/streams/{id}/actions/start` · `stop` · `restart` | Control | Operator+ |
+| POST | `/streams/{id}/actions/switch-input` | `{inputId, pin: bool}` | Operator+ |
+| POST | `/streams/{id}/clone` | Clone | Operator+ |
+| GET | `/streams/{id}/analyzer` | PIDs, codecs, errors, bitrate (live) | Viewer+ |
+| GET | `/streams/{id}/metrics?from&to&step` | Time series (bitrate, CC, viewers) | Viewer+ |
+| GET | `/streams/{id}/events` | Event history | Viewer+ |
+| GET | `/streams/{id}/logs?tail=500` | Last log lines (+ SSE `/logs/stream`) | Operator+ |
+| GET | `/streams/{id}/thumbnail.jpg` | Latest thumbnail | Viewer+ |
+| POST | `/streams/bulk` | `{ids[], action: start\|stop\|move\|addToPackage, params}` | Operator+ |
+| POST | `/inputs/probe` | `{type, url, options}` → ffprobe result (FR-INP-07) | Operator+ |
+
+**Example — create a stream:**
+
+```json
+POST /api/v1/streams
+{
+  "name": "BTV HD",
+  "slug": "btv-hd",
+  "lcn": 3,
+  "categoryId": "8f0c…",
+  "nodeId": "a12e…",
+  "mode": "ALWAYS_ON",
+  "enabled": true,
+  "epgId": "btv.bg",
+  "inputs": [
+    {"priority": 1, "type": "HTTP_TS", "url": "http://provider-a/btv.ts", "timeoutSec": 5, "hotStandby": false},
+    {"priority": 2, "type": "UDP", "url": "udp://239.10.0.3:1234", "options": {"iface": "eth1"}, "hotStandby": true}
+  ],
+  "outputs": [
+    {"type": "HLS", "options": {"segmentSec": 4, "listSize": 6}, "public": true},
+    {"type": "HTTP_TS", "public": true}
+  ],
+  "packageIds": ["c4a1…"]
+}
+```
+
+```json
+201 Created
+{
+  "id": "5b7d…", "slug": "btv-hd", "version": 1,
+  "status": {"state": "STARTING", "activeInputId": null},
+  "urls": {"hls": "https://tv.example.com/live/btv-hd/index.m3u8", "ts": "https://tv.example.com/ts/btv-hd.ts"}
+}
+```
+
+### 2.3 Categories and packages
+
+| Method | Path | Description |
+|---|---|---|
+| GET/POST | `/categories` | List / create |
+| PUT/DELETE | `/categories/{id}` | Update / delete |
+| GET/POST | `/packages` | List / create |
+| GET/PUT/DELETE | `/packages/{id}` | Detail / update / delete |
+| PUT | `/packages/{id}/streams` | `[{streamId, sortOrder}]` — full ordering |
+
+### 2.4 Subscribers
+
+| Method | Path | Description | Role |
+|---|---|---|---|
+| GET | `/subscribers` | Filters: `status, packageId, expiresBefore, q` | Support+ |
+| POST | `/subscribers` | Create | Support+ |
+| GET/PUT | `/subscribers/{id}` | Detail / update | Support+ |
+| DELETE | `/subscribers/{id}` | Delete | Admin |
+| POST | `/subscribers/{id}/actions/extend` | `{days}` or `{until}` | Support+ |
+| POST | `/subscribers/{id}/actions/suspend` · `resume` · `ban` | Status | Support+ |
+| POST | `/subscribers/{id}/actions/regenerate-token` | New token, kicks sessions | Support+ |
+| GET | `/subscribers/{id}/devices` · DELETE `/devices/{deviceId}` | Devices | Support+ |
+| GET | `/subscribers/{id}/sessions` | Active sessions and history | Support+ |
+| POST | `/subscribers/import` (CSV) · GET `/subscribers/export` | Bulk operations | Admin |
+
+### 2.5 Sessions
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/sessions` | Active sessions (filters: `streamId, subscriberId, nodeId, country`) |
+| DELETE | `/sessions/{sessionKey}` | Kick |
+| DELETE | `/subscribers/{id}/sessions` | Kick all sessions of a subscriber |
+
+### 2.6 Servers
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/nodes` | List + metrics |
+| POST | `/nodes/enrollment-tokens` | Key to enroll a new server (valid 1 h) |
+| GET/PUT/DELETE | `/nodes/{id}` | Detail / update / remove |
+| POST | `/nodes/{id}/actions/drain` · `undrain` | Maintenance mode |
+
+### 2.7 Monitoring, alerts, audit, settings
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/dashboard/summary` | Dashboard counters |
+| GET | `/events` | SSE: `stream.status`, `stream.failover`, `node.metrics`, `session.count`, `alert` |
+| GET/POST/PUT/DELETE | `/alert-rules`, `/notification-channels` | Alert rules and channels |
+| POST | `/notification-channels/{id}/test` | Test notification |
+| GET | `/alerts?state=FIRING` · POST `/alerts/{id}/ack` | Incidents |
+| GET | `/audit?actorId&entityType&from&to` | Audit log |
+| GET/PUT | `/settings` | Global settings |
+| POST | `/import/m3u` · `/import/astra` | Import (returns preview; `?commit=true` saves) |
+| GET/POST | `/config/export` · `/config/import` | Full configuration backup |
+| GET | `/reports/{type}?from&to` | `top-streams`, `peak-viewers`, `uptime`, `subscribers` |
+| GET/POST/DELETE | `/admin-users`, `/api-keys` | Administrators and keys |
+
+## 3. Public (subscriber) endpoints — on the edge domain
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/pl/{token}.m3u?type=hls\|ts` | Personal playlist |
+| GET | `/epg/{token}.xml.gz` | Filtered XMLTV |
+| GET | `/live/{slug}/index.m3u8?token=` | HLS (authorized via `auth_request`) |
+| GET | `/live/{slug}/{segment}.ts?s=&e=` | Segment (`secure_link`) |
+| GET | `/ts/{slug}.ts?token=` | HTTP-TS |
+| GET | `/get.php?username&password&type=m3u_plus` | Xtream compatibility (R1) |
+| GET | `/player_api.php?username&password&action=` | Xtream compatibility (R1) |
+| GET | `/live/{username}/{password}/{streamId}.{ts\|m3u8}` | Xtream compatibility (R1) |
+
+## 4. Internal endpoints
+
+| Method | Path | Called by | Description |
+|---|---|---|---|
+| GET | `/internal/auth` | nginx `auth_request` | Input headers: `X-Original-URI`, `X-Real-IP`, `User-Agent`. Response `200` + `X-Session-Id`, `X-Sign-Expires` / `401` / `403` + `X-Deny-Reason: EXPIRED\|LIMIT\|NOT_IN_PACKAGE\|IP\|GEO` |
+| gRPC | `AgentControl.Connect(stream)` | tvr-agent | Bidirectional stream (see [03-architecture](03-architecture.md) §7) |
+
+## 5. Webhooks (R2)
+
+```json
+POST {webhook_url}
+X-TVR-Event: stream.failover
+X-TVR-Signature: sha256=…   # HMAC-SHA256(body, secret)
+{
+  "id": "evt_01J…",
+  "type": "stream.failover",
+  "ts": "2026-10-05T18:21:04Z",
+  "data": {"streamId": "5b7d…", "slug": "btv-hd", "from": 1, "to": 2, "reason": "NO_DATA"}
+}
+```
+
+Retries: 1 min, 5 min, 30 min, 2 h, 6 h. A `2xx` response is expected within 5 s.
+
+## 6. gRPC contract (excerpt)
+
+```protobuf
+syntax = "proto3";
+package tvr.agent.v1;
+
+service AgentControl {
+  rpc Connect(stream AgentMessage) returns (stream CoreMessage);
+}
+
+message AgentMessage {
+  oneof msg {
+    Hello hello = 1;            // nodeId, versions, capabilities
+    Heartbeat heartbeat = 2;
+    NodeMetrics metrics = 3;
+    StreamStatus status = 4;
+    StreamEvent event = 5;
+    LogLines logs = 6;
+    AckDesiredState ack = 7;
+  }
+}
+
+message CoreMessage {
+  oneof msg {
+    DesiredState desired = 1;   // full snapshot + version
+    Command command = 2;        // RESTART, SWITCH_INPUT, KICK, SUBSCRIBE_LOGS
+  }
+}
+
+message StreamStatus {
+  string stream_id = 1;
+  State state = 2;              // STOPPED, STARTING, ONLINE, DEGRADED, OFFLINE, ERROR
+  string active_input_id = 3;
+  uint64 bitrate_in = 4;
+  uint32 cc_errors_per_min = 5;
+  bool scrambled = 6;
+  repeated PidInfo pids = 7;
+  uint32 http_ts_clients = 8;
+}
+```

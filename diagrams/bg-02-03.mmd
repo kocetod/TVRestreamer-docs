@@ -1,0 +1,19 @@
+sequenceDiagram
+    autonumber
+    participant P as Плейър
+    participant E as Edge nginx
+    participant C as tvr-core (auth)
+    participant R as Redis
+    P->>E: GET /live/btv/index.m3u8?token=T
+    E->>C: auth_request /internal/auth (token, slug, IP, UA)
+    C->>R: сесии на абоната, кеш на правата
+    alt валиден + канал в пакета + под лимита
+        C-->>E: 200 + X-Session-Id
+        E->>E: njs подписва URL на сегментите (HMAC, 60 сек)
+        E-->>P: m3u8 с подписани сегменти
+        P->>E: GET seg_123.ts?s=SIG&e=EXP
+        E-->>P: 200 (без обаждане към core)
+    else невалиден / изтекъл / над лимита
+        C-->>E: 401 / 403
+        E-->>P: 403 (+ причина в header)
+    end

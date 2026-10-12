@@ -1,0 +1,173 @@
+erDiagram
+    NODE ||--o{ STREAM : "runs"
+    STREAM ||--|{ STREAM_INPUT : "has"
+    STREAM ||--o{ STREAM_OUTPUT : "has"
+    STREAM }o--|| CATEGORY : "in"
+    STREAM ||--o{ PACKAGE_STREAM : ""
+    PACKAGE ||--o{ PACKAGE_STREAM : ""
+    PACKAGE ||--o{ SUBSCRIBER_PACKAGE : ""
+    SUBSCRIBER ||--o{ SUBSCRIBER_PACKAGE : ""
+    SUBSCRIBER ||--o{ DEVICE : "has"
+    SUBSCRIBER ||--o{ SESSION_HISTORY : ""
+    STREAM ||--o{ STREAM_EVENT : ""
+    STREAM ||--o{ SESSION_HISTORY : ""
+    ADMIN_USER ||--o{ AUDIT_LOG : "performs"
+    ADMIN_USER ||--o{ API_KEY : "owns"
+    ALERT_RULE ||--o{ ALERT_EVENT : "fires"
+    NOTIFICATION_CHANNEL ||--o{ ALERT_RULE : "notifies via"
+
+    NODE {
+        uuid id PK
+        string name
+        string role "INGEST|EDGE|ALL_IN_ONE"
+        string public_host
+        string status "ONLINE|OFFLINE|DRAIN"
+        int max_streams
+        string agent_version
+        timestamptz last_seen_at
+    }
+    STREAM {
+        uuid id PK
+        string name
+        string slug UK
+        int lcn
+        uuid category_id FK
+        uuid node_id FK
+        string logo_url
+        string epg_id
+        bool enabled
+        string mode "ALWAYS_ON|ON_DEMAND"
+        jsonb processing
+        int version
+        timestamptz deleted_at
+    }
+    STREAM_INPUT {
+        uuid id PK
+        uuid stream_id FK
+        int priority
+        string type "HTTP_TS|HLS|UDP|SRT|RTMP|RTSP|DVB"
+        string url
+        jsonb options
+        bool hot_standby
+        int timeout_sec
+        bool enabled
+    }
+    STREAM_OUTPUT {
+        uuid id PK
+        uuid stream_id FK
+        string type "HLS|HTTP_TS|UDP|SRT|RTMP"
+        jsonb options
+        bool public
+        bool enabled
+    }
+    CATEGORY {
+        uuid id PK
+        string name
+        int sort_order
+    }
+    PACKAGE {
+        uuid id PK
+        string name
+        string description
+        bool active
+    }
+    PACKAGE_STREAM {
+        uuid package_id FK
+        uuid stream_id FK
+        int sort_order
+    }
+    SUBSCRIBER {
+        uuid id PK
+        string username UK
+        string password_hash
+        string token UK
+        string full_name
+        string phone
+        string email
+        string status "ACTIVE|SUSPENDED|EXPIRED|BANNED"
+        date expires_at
+        int max_connections
+        string limit_policy "REJECT_NEW|KICK_OLDEST"
+        cidr[] allowed_ips
+        string[] allowed_countries
+        text note
+    }
+    SUBSCRIBER_PACKAGE {
+        uuid subscriber_id FK
+        uuid package_id FK
+    }
+    DEVICE {
+        uuid id PK
+        uuid subscriber_id FK
+        string fingerprint
+        string user_agent
+        inet last_ip
+        timestamptz last_seen_at
+    }
+    SESSION_HISTORY {
+        bigint id PK
+        uuid subscriber_id FK
+        uuid stream_id FK
+        uuid edge_node_id FK
+        inet ip
+        string country
+        string user_agent
+        timestamptz started_at
+        timestamptz ended_at
+        bigint bytes_sent
+        string end_reason
+    }
+    STREAM_EVENT {
+        bigint id PK
+        uuid stream_id FK
+        timestamptz ts
+        string type "STATUS|FAILOVER|RECOVERED|ERROR"
+        jsonb data
+    }
+    ADMIN_USER {
+        uuid id PK
+        string email UK
+        string password_hash
+        string role "ADMIN|OPERATOR|SUPPORT|VIEWER"
+        string totp_secret
+        bool active
+    }
+    API_KEY {
+        uuid id PK
+        uuid owner_id FK
+        string prefix
+        string hash
+        string[] scopes
+        timestamptz expires_at
+    }
+    AUDIT_LOG {
+        bigint id PK
+        uuid actor_id FK
+        inet ip
+        string action
+        string entity_type
+        string entity_id
+        jsonb diff
+        timestamptz ts
+    }
+    ALERT_RULE {
+        uuid id PK
+        string name
+        string condition
+        jsonb params
+        uuid channel_id FK
+        bool enabled
+    }
+    ALERT_EVENT {
+        bigint id PK
+        uuid rule_id FK
+        string severity
+        string state "FIRING|RESOLVED|ACK"
+        jsonb data
+        timestamptz ts
+    }
+    NOTIFICATION_CHANNEL {
+        uuid id PK
+        string type "TELEGRAM|EMAIL|WEBHOOK"
+        jsonb config
+    }

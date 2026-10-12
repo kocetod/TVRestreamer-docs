@@ -1,0 +1,9 @@
+flowchart LR
+    PR[Pull request] --> B[Build + unit тестове<br/>Gradle, Vitest]
+    B --> IT[Интеграционни тестове<br/>Testcontainers + FFmpeg]
+    IT --> SEC[Сканиране<br/>Dependency-Check, Trivy]
+    SEC --> IMG[Docker образи → registry]
+    IMG --> STG[Деплой на staging]
+    STG --> E2E[E2E + smoke load test]
+    E2E --> APP{Ръчно одобрение}
+    APP --> PROD[Деплой на prod<br/>Ansible, rolling]

@@ -1,0 +1,15 @@
+stateDiagram-v2
+    [*] --> STOPPED
+    STOPPED --> STARTING: start / first viewer (on-demand)
+    STARTING --> ONLINE: valid TS + video/audio
+    STARTING --> OFFLINE: no working input
+    ONLINE --> DEGRADED: on backup input / errors > threshold
+    DEGRADED --> ONLINE: back on primary / errors stop
+    ONLINE --> OFFLINE: all inputs down
+    DEGRADED --> OFFLINE
+    OFFLINE --> ONLINE: input recovers
+    ONLINE --> STOPPED: stop / idle timeout
+    DEGRADED --> STOPPED
+    OFFLINE --> STOPPED
+    STARTING --> ERROR: configuration error
+    ERROR --> STOPPED: fixed

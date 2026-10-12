@@ -1,0 +1,19 @@
+sequenceDiagram
+    autonumber
+    participant S1 as Основен източник
+    participant A as tvr-agent (Analyzer + Failover)
+    participant SW as TsSwitcher
+    participant C as tvr-core
+    participant N as Telegram
+    S1--xA: спира да подава данни
+    A->>A: 5 сек без пакети на input #1 (timeout)
+    A->>SW: switch(input #2) — hot standby, < 100 ms
+    SW->>SW: повторно PAT/PMT, discontinuity флаг
+    A-->>C: Event FAILOVER(1→2, reason=NO_DATA)
+    C->>N: „BTV: превключен на резервен (няма данни)“
+    loop на всеки 10 сек
+      A->>S1: проба на input #1
+    end
+    A->>A: input #1 стабилен 30 сек
+    A->>SW: switch(input #1) — return to primary
+    A-->>C: Event RECOVERED(2→1)

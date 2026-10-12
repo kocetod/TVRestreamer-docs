@@ -1,0 +1,9 @@
+flowchart LR
+    PR[Pull request] --> B[Build + unit tests<br/>Gradle, Vitest]
+    B --> IT[Integration tests<br/>Testcontainers + FFmpeg]
+    IT --> SEC[Scanning<br/>Dependency-Check, Trivy]
+    SEC --> IMG[Docker images → registry]
+    IMG --> STG[Deploy to staging]
+    STG --> E2E[E2E + smoke load test]
+    E2E --> APP{Manual approval}
+    APP --> PROD[Deploy to prod<br/>Ansible, rolling]

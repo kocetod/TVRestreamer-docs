@@ -1,0 +1,19 @@
+sequenceDiagram
+    autonumber
+    participant P as Player
+    participant E as Edge nginx
+    participant C as tvr-core (auth)
+    participant R as Redis
+    P->>E: GET /live/btv/index.m3u8?token=T
+    E->>C: auth_request /internal/auth (token, slug, IP, UA)
+    C->>R: subscriber sessions, cached rights
+    alt valid + stream in package + under limit
+        C-->>E: 200 + X-Session-Id
+        E->>E: njs signs segment URLs (HMAC, 60 s)
+        E-->>P: m3u8 with signed segments
+        P->>E: GET seg_123.ts?s=SIG&e=EXP
+        E-->>P: 200 (no call to core)
+    else invalid / expired / over limit
+        C-->>E: 401 / 403
+        E-->>P: 403 (+ reason header)
+    end

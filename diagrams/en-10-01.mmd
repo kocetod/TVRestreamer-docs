@@ -1,0 +1,17 @@
+gantt
+    title TvRestream — plan to R1
+    dateFormat YYYY-MM-DD
+    axisFormat %d.%m
+    section M0
+    Documentation and prototype                 :done, m0, 2026-10-05, 7d
+    section MVP
+    S0 Foundation (repo, CI, dev env, proto)    :s0, 2026-10-12, 5d
+    S1 Agent + FFmpeg + HLS, stream CRUD        :s1, after s0, 5d
+    S2 TsSwitcher, cold failover, stream UI, dashboard :s2, after s1, 5d
+    S3 Subscribers, packages, M3U, edge auth    :s3, after s2, 5d
+    MVP demo                                    :milestone, mvp, after s3, 0d
+    section R1
+    S4 Hot standby, analyzer, HTTP-TS/UDP, SRT/RTMP/RTSP :s4, after s3, 5d
+    S5 Sessions, alerts, multi-server, 2FA, audit, Xtream :s5, after s4, 5d
+    S6 Load, chaos, backup, Ansible, Grafana             :s6, after s5, 5d
+    R1 production                                        :milestone, r1, after s6, 0d

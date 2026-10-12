@@ -1,0 +1,19 @@
+sequenceDiagram
+    autonumber
+    participant S1 as Primary source
+    participant A as tvr-agent (Analyzer + Failover)
+    participant SW as TsSwitcher
+    participant C as tvr-core
+    participant N as Telegram
+    S1--xA: stops sending data
+    A->>A: 5 s without packets on input #1 (timeout)
+    A->>SW: switch(input #2) — hot standby, < 100 ms
+    SW->>SW: re-send PAT/PMT, discontinuity flag
+    A-->>C: Event FAILOVER(1→2, reason=NO_DATA)
+    C->>N: "BTV: switched to backup (no data)"
+    loop every 10 s
+      A->>S1: probe input #1
+    end
+    A->>A: input #1 stable for 30 s
+    A->>SW: switch(input #1) — return to primary
+    A-->>C: Event RECOVERED(2→1)

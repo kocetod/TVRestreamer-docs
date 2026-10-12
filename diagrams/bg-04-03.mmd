@@ -1,0 +1,15 @@
+stateDiagram-v2
+    [*] --> STOPPED
+    STOPPED --> STARTING: start / първи зрител (on-demand)
+    STARTING --> ONLINE: валиден TS + видео/аудио
+    STARTING --> OFFLINE: няма работещ вход
+    ONLINE --> DEGRADED: на резервен вход / грешки > праг
+    DEGRADED --> ONLINE: върнат на основния / грешките спрат
+    ONLINE --> OFFLINE: всички входове отпаднали
+    DEGRADED --> OFFLINE
+    OFFLINE --> ONLINE: вход се възстанови
+    ONLINE --> STOPPED: stop / idle timeout
+    DEGRADED --> STOPPED
+    OFFLINE --> STOPPED
+    STARTING --> ERROR: грешка в конфигурацията
+    ERROR --> STOPPED: корекция

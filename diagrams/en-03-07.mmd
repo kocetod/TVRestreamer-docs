@@ -1,0 +1,15 @@
+sequenceDiagram
+    autonumber
+    participant P as Player
+    participant E as Edge
+    participant C as tvr-core
+    participant A as tvr-agent
+    P->>E: GET /live/slug/index.m3u8?token
+    E->>C: auth_request
+    C->>C: stream is STOPPED (on-demand) → start request
+    C->>A: StartStream(slug)
+    C-->>E: 200
+    E->>E: index.m3u8 missing → retry up to 6 s (nginx try_files + upstream to agent)
+    A-->>E: first segments ready
+    E-->>P: m3u8
+    Note over A: 60 s without viewers → stop

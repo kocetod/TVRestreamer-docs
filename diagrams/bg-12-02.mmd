@@ -1,0 +1,16 @@
+gantt
+    title TvRestream — етапи до v1.0
+    dateFormat YYYY-MM-DD
+    axisFormat %d.%m
+    excludes weekends
+    section MVP
+    S0 Основа :s0, 2026-10-08, 5d
+    S1 Първи канал  HTTP-TS → HLS :s1, after s0, 5d
+    S2 Резервиране и админ UI :s2, after s1, 7d
+    S3 Абонати и защитено гледане :s3, after s2, 7d
+    MVP v0.1.0 :milestone, after s3, 0d
+    section R1
+    S4 Потоци на ниво Astra :s4, after s3, 7d
+    S5 Готово за оператори :s5, after s4, 9d
+    S6 Продукция :s6, after s5, 7d
+    v1.0.0 :milestone, after s6, 0d

@@ -1,0 +1,31 @@
+flowchart LR
+    subgraph AGENT[tvr-agent]
+      SYNC[ControlChannel<br/>gRPC клиент · desired state]
+      REC[Reconciler]
+      SUP[ProcessSupervisor<br/>старт/стоп/рестарт, backoff]
+      subgraph PIPE[StreamPipeline × канал]
+        IW1[InputWorker #1<br/>FFmpeg → udp://127.0.0.1:p1]
+        IW2[InputWorker #2 hot standby<br/>FFmpeg → udp://127.0.0.1:p2]
+        SW[TsSwitcher<br/>Netty UDP · избира активен вход]
+        AN[TsAnalyzer<br/>PAT/PMT/CC/PCR/битрейт]
+        FO[FailoverController]
+        PK[Packager<br/>FFmpeg → HLS в tmpfs]
+        HT[HttpTsRelay<br/>fan-out към клиенти]
+        UO[UDP/SRT изходи<br/>FFmpeg]
+      end
+      MET[NodeMetrics<br/>CPU/RAM/NIC · Micrometer]
+      LOG[LogCollector<br/>FFmpeg stderr → ring buffer]
+    end
+    SYNC --> REC --> SUP
+    SUP --> IW1 & IW2 & PK & UO
+    IW1 --> SW
+    IW2 --> SW
+    SW --> AN
+    AN --> FO
+    FO -- switch --> SW
+    SW -- udp://127.0.0.1:pout --> PK
+    SW --> HT
+    SW --> UO
+    AN -- статистики --> SYNC
+    FO -- събития --> SYNC
+    MET --> SYNC

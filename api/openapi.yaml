@@ -1,0 +1,690 @@
+openapi: 3.1.0
+info:
+  title: TvRestream Admin API
+  version: 0.1.0
+  description: |
+    REST API of tvr-core. The Admin UI uses the same API.
+    Draft contract — v0.1 (concept). See docs/bg/05-api.md / docs/en/05-api.md.
+servers:
+  - url: https://admin.example.com/api/v1
+security:
+  - bearerAuth: []
+  - apiKey: []
+tags:
+  - name: auth
+  - name: streams
+  - name: packages
+  - name: subscribers
+  - name: sessions
+  - name: nodes
+  - name: monitoring
+  - name: settings
+paths:
+  /auth/login:
+    post:
+      tags: [auth]
+      security: []
+      description: |
+        Вход на администратор (TVR-006). Access токенът (JWT, 15 мин) е в тялото; refresh токенът
+        (7 дни) е само в httpOnly бисквитка `tvr_refresh` (SameSite=Strict, Path=/api/v1/auth).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: {type: string, format: email}
+                password: {type: string}
+                totp: {type: string, pattern: '^[0-9]{6}$', description: 'от TVR-073 (2FA)'}
+      responses:
+        '200':
+          description: Tokens
+          headers:
+            Set-Cookie: {schema: {type: string}, description: 'tvr_refresh=…; HttpOnly; SameSite=Strict; Path=/api/v1/auth'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TokenPair'}
+        '401': {$ref: '#/components/responses/Problem'}
+  /auth/refresh:
+    post:
+      tags: [auth]
+      security: []
+      description: Ротира refresh токена от бисквитката `tvr_refresh`. Повторна употреба на стар токен отнема всички сесии.
+      responses:
+        '200':
+          description: Tokens (+ нова бисквитка)
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TokenPair'}
+        '401': {$ref: '#/components/responses/Problem'}
+  /auth/logout:
+    post:
+      tags: [auth]
+      security: []
+      description: Отнема refresh токена от бисквитката и я изчиства.
+      responses:
+        '204': {description: Logged out}
+  /auth/me:
+    get:
+      tags: [auth]
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/UserInfo'}
+        '401': {$ref: '#/components/responses/Problem'}
+
+  /streams:
+    get:
+      tags: [streams]
+      parameters:
+        - {name: status, in: query, schema: {$ref: '#/components/schemas/StreamState'}}
+        - {name: categoryId, in: query, schema: {type: string, format: uuid}}
+        - {name: nodeId, in: query, schema: {type: string, format: uuid}}
+        - {name: packageId, in: query, schema: {type: string, format: uuid}}
+        - {name: q, in: query, schema: {type: string}}
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/size'
+        - $ref: '#/components/parameters/sort'
+      responses:
+        '200':
+          description: Page of streams
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageMeta'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: {$ref: '#/components/schemas/Stream'}
+    post:
+      tags: [streams]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/StreamInput'}
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Stream'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+  /streams/{id}:
+    parameters: [{$ref: '#/components/parameters/id'}]
+    get:
+      tags: [streams]
+      responses:
+        '200':
+          description: Stream
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Stream'}
+        '404': {$ref: '#/components/responses/Problem'}
+    put:
+      tags: [streams]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/StreamInput'
+                - type: object
+                  required: [version]
+                  properties:
+                    version: {type: integer}
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Stream'}
+        '409': {$ref: '#/components/responses/Problem'}
+    delete:
+      tags: [streams]
+      responses:
+        '204': {description: Soft-deleted}
+  /streams/{id}/actions/{action}:
+    parameters:
+      - $ref: '#/components/parameters/id'
+      - name: action
+        in: path
+        required: true
+        schema: {type: string, enum: [start, stop, restart]}
+    post:
+      tags: [streams]
+      responses:
+        '202': {description: Accepted}
+  /streams/{id}/actions/switch-input:
+    parameters: [{$ref: '#/components/parameters/id'}]
+    post:
+      tags: [streams]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [inputId]
+              properties:
+                inputId: {type: string, format: uuid}
+                pin: {type: boolean, default: false}
+      responses:
+        '202': {description: Accepted}
+  /streams/{id}/analyzer:
+    parameters: [{$ref: '#/components/parameters/id'}]
+    get:
+      tags: [streams]
+      responses:
+        '200':
+          description: Live analyzer snapshot
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AnalyzerSnapshot'}
+  /inputs/probe:
+    post:
+      tags: [streams]
+      requestBody:
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/InputDef'}
+      responses:
+        '200':
+          description: Probe result
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AnalyzerSnapshot'}
+
+  /packages:
+    get:
+      tags: [packages]
+      responses:
+        '200':
+          description: Packages
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/Package'}
+    post:
+      tags: [packages]
+      requestBody:
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Package'}
+      responses:
+        '201': {description: Created}
+  /packages/{id}/streams:
+    parameters: [{$ref: '#/components/parameters/id'}]
+    put:
+      tags: [packages]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+                properties:
+                  streamId: {type: string, format: uuid}
+                  sortOrder: {type: integer}
+      responses:
+        '204': {description: Saved}
+
+  /subscribers:
+    get:
+      tags: [subscribers]
+      parameters:
+        - {name: status, in: query, schema: {$ref: '#/components/schemas/SubscriberStatus'}}
+        - {name: packageId, in: query, schema: {type: string, format: uuid}}
+        - {name: expiresBefore, in: query, schema: {type: string, format: date}}
+        - {name: q, in: query, schema: {type: string}}
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/size'
+      responses:
+        '200':
+          description: Page of subscribers
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageMeta'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: {$ref: '#/components/schemas/Subscriber'}
+    post:
+      tags: [subscribers]
+      requestBody:
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Subscriber'}
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Subscriber'}
+  /subscribers/{id}:
+    parameters: [{$ref: '#/components/parameters/id'}]
+    get:
+      tags: [subscribers]
+      responses:
+        '200':
+          description: Subscriber
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Subscriber'}
+    put:
+      tags: [subscribers]
+      requestBody:
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Subscriber'}
+      responses:
+        '200': {description: Updated}
+    delete:
+      tags: [subscribers]
+      responses:
+        '204': {description: Deleted}
+  /subscribers/{id}/actions/extend:
+    parameters: [{$ref: '#/components/parameters/id'}]
+    post:
+      tags: [subscribers]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  properties: {days: {type: integer, minimum: 1}}
+                - type: object
+                  properties: {until: {type: string, format: date}}
+      responses:
+        '200': {description: Extended}
+  /subscribers/{id}/actions/regenerate-token:
+    parameters: [{$ref: '#/components/parameters/id'}]
+    post:
+      tags: [subscribers]
+      responses:
+        '200':
+          description: New token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: {type: string}
+                  playlistUrl: {type: string, format: uri}
+
+  /sessions:
+    get:
+      tags: [sessions]
+      parameters:
+        - {name: streamId, in: query, schema: {type: string, format: uuid}}
+        - {name: subscriberId, in: query, schema: {type: string, format: uuid}}
+        - {name: nodeId, in: query, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: Active sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/Session'}
+  /sessions/{sessionKey}:
+    delete:
+      tags: [sessions]
+      parameters:
+        - {name: sessionKey, in: path, required: true, schema: {type: string}}
+      responses:
+        '204': {description: Kicked}
+
+  /nodes:
+    get:
+      tags: [nodes]
+      responses:
+        '200':
+          description: Nodes
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/Node'}
+  /nodes/enrollment-tokens:
+    post:
+      tags: [nodes]
+      responses:
+        '201':
+          description: One-time enrollment token (valid 1h)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: {type: string}
+                  installCommand: {type: string}
+                  expiresAt: {type: string, format: date-time}
+
+  /dashboard/summary:
+    get:
+      tags: [monitoring]
+      responses:
+        '200':
+          description: Dashboard counters
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DashboardSummary'}
+  /events:
+    get:
+      tags: [monitoring]
+      description: Server-Sent Events stream (stream.status, stream.failover, node.metrics, session.count, alert)
+      responses:
+        '200':
+          description: SSE
+          content:
+            text/event-stream:
+              schema: {type: string}
+
+  /settings:
+    get:
+      tags: [settings]
+      responses:
+        '200':
+          description: Settings
+          content:
+            application/json:
+              schema: {type: object, additionalProperties: true}
+    put:
+      tags: [settings]
+      requestBody:
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: true}
+      responses:
+        '200': {description: Saved}
+  /import/m3u:
+    post:
+      tags: [settings]
+      parameters:
+        - {name: commit, in: query, schema: {type: boolean, default: false}}
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file: {type: string, format: binary}
+                url: {type: string, format: uri}
+      responses:
+        '200': {description: Preview or import result}
+
+components:
+  securitySchemes:
+    bearerAuth: {type: http, scheme: bearer, bearerFormat: JWT}
+    apiKey: {type: apiKey, in: header, name: X-API-Key}
+  parameters:
+    id: {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+    page: {name: page, in: query, schema: {type: integer, default: 0, minimum: 0}}
+    size: {name: size, in: query, schema: {type: integer, default: 50, maximum: 500}}
+    sort: {name: sort, in: query, schema: {type: string, example: 'name,asc'}}
+  responses:
+    Problem:
+      description: RFC 9457 problem details
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+  schemas:
+    Problem:
+      type: object
+      properties:
+        type: {type: string}
+        title: {type: string}
+        status: {type: integer}
+        detail: {type: string}
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field: {type: string}
+              message: {type: string}
+    TokenPair:
+      type: object
+      properties:
+        accessToken: {type: string}
+        tokenType: {type: string, example: Bearer}
+        expiresIn: {type: integer, description: секунди, example: 900}
+        user: {$ref: '#/components/schemas/UserInfo'}
+    UserInfo:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        email: {type: string, format: email}
+        role: {type: string, enum: [ADMIN, OPERATOR, SUPPORT, VIEWER]}
+    PageMeta:
+      type: object
+      properties:
+        page: {type: integer}
+        size: {type: integer}
+        total: {type: integer}
+    StreamState:
+      type: string
+      enum: [STOPPED, STARTING, ONLINE, DEGRADED, OFFLINE, ERROR]
+    InputType:
+      type: string
+      enum: [HTTP_TS, HLS, UDP, SRT, RTMP, RTSP, DVB]
+    OutputType:
+      type: string
+      enum: [HLS, HTTP_TS, UDP, SRT, RTMP]
+    InputDef:
+      type: object
+      required: [type, url]
+      properties:
+        id: {type: string, format: uuid, readOnly: true}
+        priority: {type: integer, minimum: 1, maximum: 8}
+        type: {$ref: '#/components/schemas/InputType'}
+        url: {type: string, example: 'http://provider/btv.ts'}
+        timeoutSec: {type: integer, default: 5}
+        hotStandby: {type: boolean, default: false}
+        enabled: {type: boolean, default: true}
+        options: {type: object, additionalProperties: true}
+    OutputDef:
+      type: object
+      required: [type]
+      properties:
+        id: {type: string, format: uuid, readOnly: true}
+        type: {$ref: '#/components/schemas/OutputType'}
+        public: {type: boolean, default: true}
+        enabled: {type: boolean, default: true}
+        options: {type: object, additionalProperties: true}
+    StreamInput:
+      type: object
+      required: [name, slug, inputs, outputs]
+      properties:
+        name: {type: string, maxLength: 120}
+        slug: {type: string, pattern: '^[a-z0-9-]{2,64}$'}
+        lcn: {type: integer}
+        categoryId: {type: string, format: uuid}
+        nodeId: {type: string, format: uuid}
+        logoUrl: {type: string}
+        epgId: {type: string}
+        enabled: {type: boolean, default: true}
+        mode: {type: string, enum: [ALWAYS_ON, ON_DEMAND], default: ALWAYS_ON}
+        processing:
+          type: object
+          properties:
+            pnr: {type: integer}
+            keepAudioLangs: {type: array, items: {type: string}}
+            dropSubtitles: {type: boolean}
+            serviceName: {type: string}
+        inputs:
+          type: array
+          minItems: 1
+          maxItems: 8
+          items: {$ref: '#/components/schemas/InputDef'}
+        outputs:
+          type: array
+          minItems: 1
+          items: {$ref: '#/components/schemas/OutputDef'}
+        packageIds:
+          type: array
+          items: {type: string, format: uuid}
+    Stream:
+      allOf:
+        - $ref: '#/components/schemas/StreamInput'
+        - type: object
+          properties:
+            id: {type: string, format: uuid}
+            version: {type: integer}
+            status:
+              type: object
+              properties:
+                state: {$ref: '#/components/schemas/StreamState'}
+                activeInputId: {type: string, format: uuid, nullable: true}
+                bitrateIn: {type: integer, description: bits/s}
+                viewers: {type: integer}
+                since: {type: string, format: date-time}
+            urls:
+              type: object
+              properties:
+                hls: {type: string, format: uri}
+                ts: {type: string, format: uri}
+    AnalyzerSnapshot:
+      type: object
+      properties:
+        bitrate: {type: integer}
+        ccErrorsPerMin: {type: integer}
+        pcrJitterMs: {type: number}
+        scrambled: {type: boolean}
+        programs:
+          type: array
+          items:
+            type: object
+            properties:
+              pnr: {type: integer}
+              serviceName: {type: string}
+              provider: {type: string}
+        pids:
+          type: array
+          items:
+            type: object
+            properties:
+              pid: {type: integer}
+              type: {type: string, enum: [VIDEO, AUDIO, SUBTITLE, DATA, PMT, PAT, SDT, EIT, OTHER]}
+              codec: {type: string, example: h264}
+              lang: {type: string}
+              bitrate: {type: integer}
+              ccErrors: {type: integer}
+              scrambled: {type: boolean}
+        video:
+          type: object
+          properties:
+            codec: {type: string}
+            width: {type: integer}
+            height: {type: integer}
+            fps: {type: number}
+            profile: {type: string}
+    Package:
+      type: object
+      required: [name]
+      properties:
+        id: {type: string, format: uuid, readOnly: true}
+        name: {type: string}
+        description: {type: string}
+        active: {type: boolean}
+        streamCount: {type: integer, readOnly: true}
+        subscriberCount: {type: integer, readOnly: true}
+    SubscriberStatus:
+      type: string
+      enum: [ACTIVE, SUSPENDED, EXPIRED, BANNED]
+    Subscriber:
+      type: object
+      required: [username]
+      properties:
+        id: {type: string, format: uuid, readOnly: true}
+        username: {type: string}
+        password: {type: string, writeOnly: true}
+        fullName: {type: string}
+        phone: {type: string}
+        email: {type: string, format: email}
+        status: {$ref: '#/components/schemas/SubscriberStatus'}
+        expiresAt: {type: string, format: date}
+        maxConnections: {type: integer, default: 1, minimum: 1, maximum: 10}
+        limitPolicy: {type: string, enum: [REJECT_NEW, KICK_OLDEST], default: REJECT_NEW}
+        packageIds: {type: array, items: {type: string, format: uuid}}
+        allowedIps: {type: array, items: {type: string, example: '10.0.0.0/24'}}
+        allowedCountries: {type: array, items: {type: string, example: BG}}
+        note: {type: string}
+        token: {type: string, readOnly: true}
+        playlistUrl: {type: string, format: uri, readOnly: true}
+        activeSessions: {type: integer, readOnly: true}
+    Session:
+      type: object
+      properties:
+        sessionKey: {type: string}
+        subscriberId: {type: string, format: uuid}
+        username: {type: string}
+        streamId: {type: string, format: uuid}
+        streamName: {type: string}
+        ip: {type: string}
+        country: {type: string}
+        userAgent: {type: string}
+        edgeNode: {type: string}
+        protocol: {type: string, enum: [HLS, HTTP_TS]}
+        startedAt: {type: string, format: date-time}
+        bytesSent: {type: integer}
+    Node:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string}
+        role: {type: string, enum: [INGEST, EDGE, ALL_IN_ONE]}
+        publicHost: {type: string}
+        status: {type: string, enum: [ONLINE, OFFLINE, DRAIN]}
+        maxStreams: {type: integer}
+        agentVersion: {type: string}
+        ffmpegVersion: {type: string}
+        metrics:
+          type: object
+          properties:
+            cpu: {type: number}
+            ramUsed: {type: integer}
+            ramTotal: {type: integer}
+            netInBps: {type: integer}
+            netOutBps: {type: integer}
+            streams: {type: integer}
+        lastSeenAt: {type: string, format: date-time}
+    DashboardSummary:
+      type: object
+      properties:
+        streams:
+          type: object
+          properties:
+            total: {type: integer}
+            online: {type: integer}
+            degraded: {type: integer}
+            offline: {type: integer}
+            stopped: {type: integer}
+        viewersNow: {type: integer}
+        viewersPeakToday: {type: integer}
+        egressBps: {type: integer}
+        subscribers:
+          type: object
+          properties:
+            active: {type: integer}
+            expiringIn7d: {type: integer}
+        nodes:
+          type: object
+          properties:
+            online: {type: integer}
+            total: {type: integer}
+        firingAlerts: {type: integer}

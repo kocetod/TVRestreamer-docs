@@ -1,0 +1,12 @@
+flowchart LR
+    S1[(Primary source)] --> I1[FFmpeg input #1]
+    S2[(Backup source)] --> I2[FFmpeg input #2]
+    I1 -- MPEG-TS/UDP lo --> SW{TsSwitcher}
+    I2 -- MPEG-TS/UDP lo --> SW
+    SW --> AN[[TsAnalyzer]]
+    SW -- TS --> P[FFmpeg packager<br/>-c copy -f hls]
+    P --> H[(/dev/shm/hls/slug/<br/>index.m3u8 + seg_N.ts)]
+    SW -- TS --> R[HttpTsRelay :8090/ts/slug]
+    SW -- TS --> U[FFmpeg UDP out<br/>239.1.1.x:1234]
+    H --> O[nginx origin] --> E[nginx edge] --> V((HLS viewers))
+    R --> E2[nginx edge proxy] --> V2((HTTP-TS viewers))

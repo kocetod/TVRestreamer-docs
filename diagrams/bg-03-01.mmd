@@ -1,0 +1,20 @@
+flowchart TB
+    subgraph Хора
+      ADM[Администратор / Техник / Поддръжка]
+      SUB[Абонат<br/>STB · Smart TV · мобилен плейър]
+    end
+    subgraph Външни системи
+      PROV[Доставчици на потоци<br/>HTTP/HLS · SRT · RTMP]
+      HEAD[Локален headend<br/>UDP multicast · бъдещо DVB]
+      EPG[EPG доставчик<br/>XMLTV]
+      TG[Telegram / SMTP]
+      BILL[Билинг / CRM]
+    end
+    TVR[[TvRestream платформа]]
+    ADM -- уеб панел --> TVR
+    SUB -- M3U, HLS, HTTP-TS --> TVR
+    PROV -- потоци --> TVR
+    HEAD -- потоци --> TVR
+    EPG -- XMLTV --> TVR
+    TVR -- известия --> TG
+    BILL -- REST API / webhooks --> TVR

@@ -1,0 +1,19 @@
+sequenceDiagram
+    autonumber
+    actor T as Technician
+    participant UI as Admin UI
+    participant C as tvr-core
+    participant DB as PostgreSQL
+    participant A as tvr-agent
+    participant F as FFmpeg
+    T->>UI: New stream (name, inputs, outputs)
+    UI->>C: POST /api/v1/streams
+    C->>DB: INSERT stream, inputs, outputs (version=1)
+    C->>A: DesiredState(stream, v1) over gRPC
+    A->>A: Reconciler: new pipeline
+    A->>F: start input #1 (+ hot standby #2)
+    A->>F: start HLS packager
+    F-->>A: first TS packets
+    A->>A: TsAnalyzer: PAT/PMT OK, video+audio OK
+    A-->>C: StreamStatus(ONLINE, input=1, bitrate)
+    C-->>UI: SSE stream.status = ONLINE

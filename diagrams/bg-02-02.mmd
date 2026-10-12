@@ -1,0 +1,9 @@
+stateDiagram-v2
+    [*] --> Primary: start
+    Primary --> Backup1: няма данни > timeout<br/>или CC грешки > праг
+    Backup1 --> Backup2: Backup1 също отпада
+    Backup2 --> Offline: всички входове отпадат
+    Backup1 --> Primary: Primary е стабилен N сек<br/>(return-to-primary)
+    Backup2 --> Primary: Primary е стабилен N сек
+    Offline --> Primary: някой вход се възстанови
+    Offline --> Backup1: Backup1 се възстанови

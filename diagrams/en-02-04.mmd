@@ -1,0 +1,7 @@
+flowchart TB
+    CORE[tvr-core] -- gRPC/WebSocket commands<br/>+ heartbeat --> A1[node-1 ingest<br/>tvr-agent]
+    CORE --> A2[node-2 ingest<br/>tvr-agent]
+    A1 -- HLS origin --> E1[edge-1 nginx]
+    A2 -- HLS origin --> E1
+    A1 --> E2[edge-2 nginx]
+    A2 --> E2

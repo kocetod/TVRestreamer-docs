@@ -1,0 +1,9 @@
+stateDiagram-v2
+    [*] --> Primary: start
+    Primary --> Backup1: no data > timeout<br/>or CC errors > threshold
+    Backup1 --> Backup2: Backup1 also fails
+    Backup2 --> Offline: all inputs fail
+    Backup1 --> Primary: Primary stable for N s<br/>(return-to-primary)
+    Backup2 --> Primary: Primary stable for N s
+    Offline --> Primary: an input recovers
+    Offline --> Backup1: Backup1 recovers

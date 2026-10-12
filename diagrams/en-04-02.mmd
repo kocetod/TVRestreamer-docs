@@ -1,0 +1,10 @@
+stateDiagram-v2
+    [*] --> ACTIVE: create
+    ACTIVE --> SUSPENDED: manual suspend
+    SUSPENDED --> ACTIVE: resume
+    ACTIVE --> EXPIRED: expires_at < today (cron 00:00)
+    EXPIRED --> ACTIVE: extend
+    ACTIVE --> BANNED: violation
+    SUSPENDED --> BANNED
+    BANNED --> ACTIVE: manual (Admin only)
+    EXPIRED --> [*]: delete after 180 days (optional)

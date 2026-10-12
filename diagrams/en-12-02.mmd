@@ -1,0 +1,16 @@
+gantt
+    title TvRestream — stages to v1.0
+    dateFormat YYYY-MM-DD
+    axisFormat %d.%m
+    excludes weekends
+    section MVP
+    S0 Foundation :s0, 2026-10-08, 5d
+    S1 First stream  HTTP-TS → HLS :s1, after s0, 5d
+    S2 Failover and admin UI :s2, after s1, 7d
+    S3 Subscribers and protected playback :s3, after s2, 7d
+    MVP v0.1.0 :milestone, after s3, 0d
+    section R1
+    S4 Astra-level streaming :s4, after s3, 7d
+    S5 Operator-ready :s5, after s4, 9d
+    S6 Production :s6, after s5, 7d
+    v1.0.0 :milestone, after s6, 0d

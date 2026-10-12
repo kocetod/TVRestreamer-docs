@@ -1,0 +1,9 @@
+stateDiagram-v2
+    [*] --> Backlog
+    Backlog --> Selected: you pick the ticket
+    Selected --> InDev: Claude starts
+    InDev --> ForTest: code + tests + instructions
+    ForTest --> Done: checklist passes
+    ForTest --> Reopened: something fails
+    Reopened --> InDev: Claude fixes
+    Done --> [*]

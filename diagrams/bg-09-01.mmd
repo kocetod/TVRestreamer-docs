@@ -1,0 +1,6 @@
+flowchart TB
+    E2E["E2E (Playwright) — 20–30 сценария<br/>UI → API → агент → реален HLS"]
+    LOAD["Натоварване и хаос — k6, hls-bench, tc netem"]
+    INT["Интеграционни — Testcontainers (PG, Redis), FFmpeg, nginx"]
+    UNIT["Unit — JUnit 5, AssertJ, Mockito; Vitest за UI<br/>TS парсер, failover логика, auth правила"]
+    E2E --- LOAD --- INT --- UNIT

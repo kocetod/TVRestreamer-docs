@@ -1,0 +1,12 @@
+flowchart LR
+    S0[S0 Foundation] --> S1[S1 First stream]
+    S1 --> S2[S2 Failover + UI]
+    S2 --> S3[S3 Subscribers]
+    S3 --> MVP{{MVP v0.1.0}}
+    MVP --> S4[S4 Astra level]
+    MVP --> S5[S5 Operators]
+    S4 --> S6[S6 Production]
+    S5 --> S6
+    S6 --> R1{{v1.0.0}}
+    R1 --> R2[R2 Extensions]
+    R2 -.-> R3[R3 Future]

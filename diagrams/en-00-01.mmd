@@ -1,0 +1,7 @@
+flowchart LR
+    SRC[Sources<br/>HTTP/HLS · UDP · SRT/RTMP/RTSP] --> ING[Ingest + Failover<br/>tvr-agent + FFmpeg]
+    ING --> PKG[Packaging<br/>HLS · HTTP-TS · UDP]
+    PKG --> EDGE[Edge nginx<br/>token auth]
+    EDGE --> USERS[2,000–2,500 subscribers<br/>STB · Smart TV · mobile]
+    CORE[tvr-core<br/>Spring Boot · UI · API] -. manages .-> ING
+    CORE -. authorizes .-> EDGE

@@ -1,0 +1,20 @@
+flowchart TB
+    subgraph People
+      ADM[Admin / Technician / Support]
+      SUB[Subscriber<br/>STB · Smart TV · mobile player]
+    end
+    subgraph External systems
+      PROV[Stream providers<br/>HTTP/HLS · SRT · RTMP]
+      HEAD[Local headend<br/>UDP multicast · future DVB]
+      EPG[EPG provider<br/>XMLTV]
+      TG[Telegram / SMTP]
+      BILL[Billing / CRM]
+    end
+    TVR[[TvRestream platform]]
+    ADM -- web panel --> TVR
+    SUB -- M3U, HLS, HTTP-TS --> TVR
+    PROV -- streams --> TVR
+    HEAD -- streams --> TVR
+    EPG -- XMLTV --> TVR
+    TVR -- alerts --> TG
+    BILL -- REST API / webhooks --> TVR

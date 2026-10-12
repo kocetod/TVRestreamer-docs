@@ -1,0 +1,33 @@
+flowchart LR
+    subgraph CP[Control plane — 1 server or VM]
+      UI[Admin UI<br/>React SPA]
+      CORE[tvr-core<br/>Spring Boot 3 · Java 21]
+      PG[(PostgreSQL 16)]
+      RD[(Redis 7)]
+      PROM[Prometheus + Grafana]
+      UI -- REST/SSE --> CORE
+      CORE --> PG
+      CORE --> RD
+      PROM -. scrape .-> CORE
+    end
+    subgraph IN[Ingest node × N]
+      AG[tvr-agent<br/>Spring Boot · Netty]
+      FF[FFmpeg processes]
+      SHM[(tmpfs /dev/shm/hls)]
+      OR[nginx origin]
+      AG -- starts/watches --> FF
+      FF -- UDP loopback --> AG
+      AG -- TS --> FF
+      FF -- HLS segments --> SHM
+      OR -- reads --> SHM
+    end
+    subgraph ED[Edge node × M]
+      NG[nginx edge<br/>secure_link · auth_request · proxy_cache]
+    end
+    CORE <-- gRPC bidirectional stream<br/>(agent-initiated) --> AG
+    NG -- auth_request --> CORE
+    NG -- proxy_pass/cache --> OR
+    NG -- HTTP-TS proxy --> AG
+    PLAYER[Subscriber players] --> NG
+    SRC[Sources] --> FF
+    PROM -. scrape .-> AG

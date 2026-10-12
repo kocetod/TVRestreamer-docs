@@ -1,0 +1,10 @@
+stateDiagram-v2
+    [*] --> ACTIVE: създаване
+    ACTIVE --> SUSPENDED: ръчно спиране
+    SUSPENDED --> ACTIVE: възобновяване
+    ACTIVE --> EXPIRED: expires_at < днес (cron 00:00)
+    EXPIRED --> ACTIVE: удължаване
+    ACTIVE --> BANNED: нарушение
+    SUSPENDED --> BANNED
+    BANNED --> ACTIVE: ръчно (само Admin)
+    EXPIRED --> [*]: изтриване след 180 дни (по избор)
