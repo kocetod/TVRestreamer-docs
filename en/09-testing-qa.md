@@ -34,6 +34,7 @@ flowchart TB
 | `multi-audio.ts` | bul + eng + subtitles | Audio filtering |
 | `hevc-ac3.ts` | H.265 + AC3 | Codec analyzer |
 | Live HTTP server | `ffmpeg -re ... -f mpegts -listen 1 http://0.0.0.0:9000` | HTTP-TS input, failure on demand |
+| Local live streams (TVR-009) | `TVRestreamer_Code/scripts/test-streams.sh start` → HTTP-TS `:9001/a.ts`, `:9002/b.ts`, UDP `:5001`, HLS `:9003/index.m3u8`; `stop a` stops a single stream | Inputs, failover / recovery in development |
 
 ## 3. Key test scenarios (excerpt)
 

@@ -34,6 +34,7 @@ flowchart TB
 | `multi-audio.ts` | bul + eng + subtitles | Филтриране на аудио |
 | `hevc-ac3.ts` | H.265 + AC3 | Анализатор на кодеци |
 | Live HTTP сървър | `ffmpeg -re ... -f mpegts -listen 1 http://0.0.0.0:9000` | Вход HTTP-TS, отпадане при поискване |
+| Локални живи потоци (TVR-009) | `TVRestreamer_Code/scripts/test-streams.sh start` → HTTP-TS `:9001/a.ts`, `:9002/b.ts`, UDP `:5001`, HLS `:9003/index.m3u8`; `stop a` спира само един поток | Входове, failover / recovery при разработка |
 
 ## 3. Ключови тестови сценарии (извадка)
 
