@@ -13,6 +13,7 @@ security:
 tags:
   - name: auth
   - name: streams
+  - name: categories
   - name: packages
   - name: subscribers
   - name: sessions
@@ -216,6 +217,95 @@ paths:
           content:
             application/json:
               schema: {$ref: '#/components/schemas/AnalyzerSnapshot'}
+
+  /categories:
+    get:
+      tags: [categories]
+      description: All categories in display order (sortOrder, then name). Any admin role.
+      responses:
+        '200':
+          description: Categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/Category'}
+    post:
+      tags: [categories]
+      description: |
+        Create a category (ADMIN, OPERATOR). Without sortOrder it goes last.
+        409 when the name is taken (ignoring case).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CategoryInput'}
+      responses:
+        '201':
+          description: Created (Location header = /api/v1/categories/{id})
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Category'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+  /categories/order:
+    put:
+      tags: [categories]
+      description: |
+        New order of all categories (drag and drop): ids of every category exactly once; position i gets
+        sortOrder = i. A missing, unknown or repeated id → 400 (errors[].field = "[i]" or "").
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items: {type: string, format: uuid}
+      responses:
+        '200':
+          description: Categories in the new order
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/Category'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+  /categories/{id}:
+    parameters: [{$ref: '#/components/parameters/id'}]
+    get:
+      tags: [categories]
+      responses:
+        '200':
+          description: Category
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Category'}
+        '404': {$ref: '#/components/responses/Problem'}
+    put:
+      tags: [categories]
+      description: Update the name and optionally sortOrder (kept when omitted). 409 when the name is taken.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CategoryInput'}
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Category'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+    delete:
+      tags: [categories]
+      description: Delete the category; its channels stay, without a category.
+      responses:
+        '204': {description: Deleted}
+        '404': {$ref: '#/components/responses/Problem'}
 
   /packages:
     get:
@@ -615,6 +705,21 @@ components:
             height: {type: integer}
             fps: {type: number}
             profile: {type: string}
+    CategoryInput:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string, maxLength: 100, example: Новини}
+        sortOrder: {type: integer, minimum: 0, maximum: 100000, description: 'Lower first; on create default = last'}
+    Category:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string}
+        sortOrder: {type: integer}
+        streamCount: {type: integer, description: 'Channels (not deleted) in the category'}
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
     Package:
       type: object
       required: [name]

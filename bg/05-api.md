@@ -89,11 +89,14 @@ POST /api/v1/streams
 
 | Метод | Път | Описание |
 |---|---|---|
-| GET/POST | `/categories` | Списък / създаване |
-| PUT/DELETE | `/categories/{id}` | Редакция / изтриване |
+| GET/POST | `/categories` | Списък (по `sortOrder`, после име) / създаване `{name, sortOrder?}` — без `sortOrder` отива последна |
+| GET/PUT/DELETE | `/categories/{id}` | Детайл / редакция / изтриване (каналите остават без категория) |
+| PUT | `/categories/order` | `[id, id, …]` — пълна подредба на всички категории; връща новия списък |
 | GET/POST | `/packages` | Списък / създаване |
 | GET/PUT/DELETE | `/packages/{id}` | Детайл / редакция / изтриване |
 | PUT | `/packages/{id}/streams` | `[{streamId, sortOrder}]` — пълна подредба |
+
+> Категории (TVR-013): четене — всяка роля, промяна — ADMIN/OPERATOR. Името е уникално без значение от главни/малки букви (409 с `errors[].field = name`), до 100 символа; `sortOrder` 0–100000. Отговорът съдържа `streamCount` (неизтрити канали). При `PUT /categories/order` всяка категория трябва да е точно веднъж — иначе 400.
 
 ### 2.4 Абонати
 

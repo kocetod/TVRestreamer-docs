@@ -89,11 +89,14 @@ POST /api/v1/streams
 
 | Method | Path | Description |
 |---|---|---|
-| GET/POST | `/categories` | List / create |
-| PUT/DELETE | `/categories/{id}` | Update / delete |
+| GET/POST | `/categories` | List (by `sortOrder`, then name) / create `{name, sortOrder?}` — without `sortOrder` it goes last |
+| GET/PUT/DELETE | `/categories/{id}` | Detail / update / delete (channels stay, without a category) |
+| PUT | `/categories/order` | `[id, id, …]` — full order of all categories; returns the new list |
 | GET/POST | `/packages` | List / create |
 | GET/PUT/DELETE | `/packages/{id}` | Detail / update / delete |
 | PUT | `/packages/{id}/streams` | `[{streamId, sortOrder}]` — full ordering |
+
+> Categories (TVR-013): read — any role, change — ADMIN/OPERATOR. The name is unique ignoring case (409 with `errors[].field = name`), up to 100 characters; `sortOrder` 0–100000. The response carries `streamCount` (channels not deleted). With `PUT /categories/order` every category must appear exactly once — otherwise 400.
 
 ### 2.4 Subscribers
 
