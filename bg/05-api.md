@@ -77,11 +77,13 @@ POST /api/v1/streams
 ```json
 201 Created
 {
-  "id": "5b7d…", "slug": "btv-hd", "version": 1,
-  "status": {"state": "STARTING", "activeInputId": null},
+  "id": "5b7d…", "slug": "btv-hd", "version": 0,
+  "status": {"state": "STOPPED", "activeInputId": null},
   "urls": {"hls": "https://tv.example.com/live/btv-hd/index.m3u8", "ts": "https://tv.example.com/ts/btv-hd.ts"}
 }
 ```
+
+> Отговорът съдържа целия канал (входове и изходи с `id`). `version` започва от 0 и расте с 1 при всяка промяна. Докато агентът не докладва състояние (TVR-020), `status.state` е `STOPPED`. Грешки: 400 с `errors:[{field, message}]` (напр. `{"field": "inputs[0].url", "message": "Неподдържан протокол"}`), 409 при зает slug или стара `version`.
 
 ### 2.3 Категории и пакети
 

@@ -77,11 +77,13 @@ POST /api/v1/streams
 ```json
 201 Created
 {
-  "id": "5b7d…", "slug": "btv-hd", "version": 1,
-  "status": {"state": "STARTING", "activeInputId": null},
+  "id": "5b7d…", "slug": "btv-hd", "version": 0,
+  "status": {"state": "STOPPED", "activeInputId": null},
   "urls": {"hls": "https://tv.example.com/live/btv-hd/index.m3u8", "ts": "https://tv.example.com/ts/btv-hd.ts"}
 }
 ```
+
+> The response contains the whole channel (inputs and outputs with `id`). `version` starts at 0 and grows by 1 with every change. Until the agent reports runtime state (TVR-020), `status.state` is `STOPPED`. Errors: 400 with `errors:[{field, message}]` (e.g. `{"field": "inputs[0].url", "message": "Неподдържан протокол"}`), 409 for a taken slug or a stale `version`.
 
 ### 2.3 Categories and packages
 

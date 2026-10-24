@@ -80,12 +80,17 @@ paths:
   /streams:
     get:
       tags: [streams]
+      description: |
+        List of channels (any admin role). Sortable by name, slug, lcn, enabled, createdAt, updatedAt
+        (default name,asc). Until the agent reports runtime state (TVR-020) every channel is STOPPED.
       parameters:
         - {name: status, in: query, schema: {$ref: '#/components/schemas/StreamState'}}
         - {name: categoryId, in: query, schema: {type: string, format: uuid}}
         - {name: nodeId, in: query, schema: {type: string, format: uuid}}
-        - {name: packageId, in: query, schema: {type: string, format: uuid}}
-        - {name: q, in: query, schema: {type: string}}
+        - {name: enabled, in: query, schema: {type: boolean}}
+        - {name: mode, in: query, schema: {type: string, enum: [ALWAYS_ON, ON_DEMAND]}}
+        - {name: packageId, in: query, description: 'Not supported until packages (S3) — returns 400', schema: {type: string, format: uuid}}
+        - {name: q, in: query, description: 'Part of the name or slug (case-insensitive), or an exact LCN', schema: {type: string}}
         - $ref: '#/components/parameters/page'
         - $ref: '#/components/parameters/size'
         - $ref: '#/components/parameters/sort'
@@ -102,8 +107,10 @@ paths:
                       items:
                         type: array
                         items: {$ref: '#/components/schemas/Stream'}
+        '400': {$ref: '#/components/responses/Problem'}
     post:
       tags: [streams]
+      description: Create a channel with its inputs and outputs (ADMIN, OPERATOR). 409 when the slug is taken.
       requestBody:
         required: true
         content:
@@ -111,11 +118,12 @@ paths:
             schema: {$ref: '#/components/schemas/StreamInput'}
       responses:
         '201':
-          description: Created
+          description: Created (Location header = /api/v1/streams/{id})
           content:
             application/json:
               schema: {$ref: '#/components/schemas/Stream'}
         '400': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
   /streams/{id}:
     parameters: [{$ref: '#/components/parameters/id'}]
@@ -130,6 +138,9 @@ paths:
         '404': {$ref: '#/components/responses/Problem'}
     put:
       tags: [streams]
+      description: |
+        Full update. Inputs/outputs with an id are updated, without an id created, missing ones removed.
+        version must be the current one (else 409); it grows by 1 with every effective change.
       requestBody:
         required: true
         content:
@@ -147,11 +158,15 @@ paths:
           content:
             application/json:
               schema: {$ref: '#/components/schemas/Stream'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
     delete:
       tags: [streams]
+      description: Soft delete (BR-02) — the channel disappears from the API and its slug becomes free.
       responses:
         '204': {description: Soft-deleted}
+        '404': {$ref: '#/components/responses/Problem'}
   /streams/{id}/actions/{action}:
     parameters:
       - $ref: '#/components/parameters/id'
@@ -450,13 +465,14 @@ components:
         title: {type: string}
         status: {type: integer}
         detail: {type: string}
+        instance: {type: string}
         errors:
           type: array
           items:
             type: object
             properties:
-              field: {type: string}
-              message: {type: string}
+              field: {type: string, example: 'inputs[0].url'}
+              message: {type: string, example: 'Неподдържан протокол'}
     TokenPair:
       type: object
       properties:
@@ -490,10 +506,10 @@ components:
       required: [type, url]
       properties:
         id: {type: string, format: uuid, readOnly: true}
-        priority: {type: integer, minimum: 1, maximum: 8}
+        priority: {type: integer, minimum: 1, maximum: 8, description: 'Failover order; default = position in the array'}
         type: {$ref: '#/components/schemas/InputType'}
-        url: {type: string, example: 'http://provider/btv.ts'}
-        timeoutSec: {type: integer, default: 5}
+        url: {type: string, maxLength: 2000, example: 'http://provider/btv.ts', description: 'SEC-07: http, https, udp, rtp, srt, rtmp, rtmps, rtsp, dvb only'}
+        timeoutSec: {type: integer, default: 5, minimum: 1, maximum: 120}
         hotStandby: {type: boolean, default: false}
         enabled: {type: boolean, default: true}
         options: {type: object, additionalProperties: true}
@@ -512,11 +528,14 @@ components:
       properties:
         name: {type: string, maxLength: 120}
         slug: {type: string, pattern: '^[a-z0-9-]{2,64}$'}
-        lcn: {type: integer}
+        lcn: {type: integer, minimum: 1, maximum: 9999}
         categoryId: {type: string, format: uuid}
         nodeId: {type: string, format: uuid}
-        logoUrl: {type: string}
-        epgId: {type: string}
+        logoUrl: {type: string, maxLength: 500, description: http(s) URL}
+        epgId: {type: string, maxLength: 100}
+        language: {type: string, maxLength: 10, example: bg}
+        description: {type: string}
+        tags: {type: array, maxItems: 20, items: {type: string, maxLength: 50}}
         enabled: {type: boolean, default: true}
         mode: {type: string, enum: [ALWAYS_ON, ON_DEMAND], default: ALWAYS_ON}
         processing:
@@ -537,6 +556,7 @@ components:
           items: {$ref: '#/components/schemas/OutputDef'}
         packageIds:
           type: array
+          description: Accepted but ignored until packages (S3)
           items: {type: string, format: uuid}
     Stream:
       allOf:
@@ -544,7 +564,9 @@ components:
         - type: object
           properties:
             id: {type: string, format: uuid}
-            version: {type: integer}
+            version: {type: integer, description: 0 after create}
+            createdAt: {type: string, format: date-time}
+            updatedAt: {type: string, format: date-time}
             status:
               type: object
               properties:
