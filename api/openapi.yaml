@@ -456,6 +456,9 @@ paths:
   /nodes:
     get:
       tags: [nodes]
+      description: |
+        Servers by name (any admin role). status becomes ONLINE on the agent's Hello and OFFLINE 15 s after
+        the last heartbeat (FR-NOD-02); connected = the agent has an open gRPC stream right now (TVR-017).
       responses:
         '200':
           description: Nodes
@@ -790,6 +793,7 @@ components:
             netOutBps: {type: integer}
             streams: {type: integer}
         lastSeenAt: {type: string, format: date-time}
+        connected: {type: boolean, description: 'Open gRPC stream from the agent right now'}
     DashboardSummary:
       type: object
       properties:

@@ -125,7 +125,7 @@ POST /api/v1/streams
 
 | Метод | Път | Описание |
 |---|---|---|
-| GET | `/nodes` | Списък + метрики |
+| GET | `/nodes` | Списък (по име): `status` (ONLINE/OFFLINE/DRAIN), `lastSeenAt`, `agentVersion`, `ffmpegVersion`, `connected` (има отворен gRPC поток); метрики — по-късно |
 | POST | `/nodes/enrollment-tokens` | Ключ за регистрация на нов сървър (валиден 1 ч) |
 | GET/PUT/DELETE | `/nodes/{id}` | Детайл / редакция / премахване |
 | POST | `/nodes/{id}/actions/drain` · `undrain` | Режим поддръжка |
@@ -234,5 +234,8 @@ message StreamStatus {
 | агент → core | `AckDesiredState` | Потвърждение на приложена версия (+ грешки по канали) |
 | core → агент | `DesiredState` | Пълен snapshot на каналите за този node (`StreamSpec` → `InputSpec`, `OutputSpec`) |
 | core → агент | `Command` | `RestartStream`, `SwitchInput`, `KickClient`, `SubscribeLogs` |
+| core → агент | `Welcome` | Отговор на валиден `Hello` (TVR-017): `node_id`, интервал на heartbeat (5 сек), след колко сек без heartbeat node става `OFFLINE` (15) |
+
+**Връзка и регистрация (TVR-017, опростено):** агентът отваря потока към `tvr.grpc.port` (9090) с метаданни `authorization: Bearer <token>`; token = `TVR_AGENT_TOKEN` на агента = `TVR_AGENT_ENROLL_TOKEN` на core (иначе `UNAUTHENTICATED`). Първото съобщение трябва да е `Hello` с `node_name` (иначе `FAILED_PRECONDITION` / `INVALID_ARGUMENT`); core намира node по `node_id`, после по име, или създава нов (`INGEST`) и го прави `ONLINE`. Heartbeat на всеки 5 сек обновява `last_seen_at`; без heartbeat 15 сек → `OFFLINE` (FR-NOD-02). Нова връзка на същия node затваря старата с `ABORTED`. Агентът се свързва отново с backoff 1 → 30 сек. Еднократните ключове и mTLS сертификатите (FR-NOD-01) идват по-късно.
 
 **Съвместимост:** номерата и типовете на полетата не се сменят; изтрити полета стават `reserved`; нулевата стойност на всеки enum е `*_UNSPECIFIED`; несъвместима промяна = пакет `tvr.agent.v2`.

@@ -125,7 +125,7 @@ POST /api/v1/streams
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/nodes` | List + metrics |
+| GET | `/nodes` | List (by name): `status` (ONLINE/OFFLINE/DRAIN), `lastSeenAt`, `agentVersion`, `ffmpegVersion`, `connected` (an open gRPC stream); metrics later |
 | POST | `/nodes/enrollment-tokens` | Key to enroll a new server (valid 1 h) |
 | GET/PUT/DELETE | `/nodes/{id}` | Detail / update / remove |
 | POST | `/nodes/{id}/actions/drain` · `undrain` | Maintenance mode |
@@ -234,5 +234,8 @@ The full contract lives in the code: `TVRestreamer_Code/tvr-common/src/main/prot
 | agent → core | `AckDesiredState` | Confirms an applied version (+ per-channel errors) |
 | core → agent | `DesiredState` | Full snapshot of the channels for this node (`StreamSpec` → `InputSpec`, `OutputSpec`) |
 | core → agent | `Command` | `RestartStream`, `SwitchInput`, `KickClient`, `SubscribeLogs` |
+| core → agent | `Welcome` | Reply to a valid `Hello` (TVR-017): `node_id`, heartbeat interval (5 s), seconds without a heartbeat before the node becomes `OFFLINE` (15) |
+
+**Link and enrollment (TVR-017, simplified):** the agent opens the stream to `tvr.grpc.port` (9090) with metadata `authorization: Bearer <token>`; token = the agent's `TVR_AGENT_TOKEN` = core's `TVR_AGENT_ENROLL_TOKEN` (otherwise `UNAUTHENTICATED`). The first message must be a `Hello` with `node_name` (otherwise `FAILED_PRECONDITION` / `INVALID_ARGUMENT`); core finds the node by `node_id`, then by name, or creates it (`INGEST`) and sets it `ONLINE`. A heartbeat every 5 s updates `last_seen_at`; no heartbeat for 15 s → `OFFLINE` (FR-NOD-02). A new connection of the same node closes the old one with `ABORTED`. The agent reconnects with backoff 1 → 30 s. One-time keys and mTLS certificates (FR-NOD-01) come later.
 
 **Compatibility:** field numbers and types never change; removed fields become `reserved`; every enum's zero value is `*_UNSPECIFIED`; an incompatible change means a new package `tvr.agent.v2`.
