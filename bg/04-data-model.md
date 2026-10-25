@@ -185,7 +185,7 @@ erDiagram
 | Таблица | Бележки |
 |---|---|
 | `stream` | `version` се увеличава при всяка промяна и се изпраща към агента (desired state). `deleted_at` е за меко изтриване (BR-02). Индекси: `slug` (unique), `node_id`, `enabled`. |
-| `stream_input.options` | JSON по типа, например `{"headers":{"User-Agent":"..."}, "iface":"eth1", "ssm_source":"10.0.0.1", "srt":{"mode":"caller","latency":200,"passphrase":"***"}}`. Тайните се шифрират (AES-GCM, ключ от env). |
+| `stream_input.options` | JSON по типа, например `{"headers":{"User-Agent":"..."}, "iface":"eth1", "ssm_source":"10.0.0.1", "srt":{"mode":"caller","latency":200,"passphrase":"***"}, "analyzeduration":1.5}` (`analyzeduration` — секунди за разпознаване на входа, 0,5–30, по подразбиране 1,5; TVR-021). Тайните се шифрират (AES-GCM, ключ от env). |
 | `stream.processing` | `{"pnr":101, "audio":{"keep_langs":["bul","eng"]}, "drop_subtitles":true, "service_name":"BTV HD"}` |
 | `stream_output.options` | HLS: `{"segment_sec":4, "list_size":6}`; UDP: `{"addr":"239.1.1.10","port":1234,"ttl":4,"iface":"eth1"}` |
 | `subscriber.token` | 32 символа base62, генерира се с `SecureRandom`. Индекс unique. |

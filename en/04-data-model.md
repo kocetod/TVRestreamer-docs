@@ -185,7 +185,7 @@ erDiagram
 | Table | Notes |
 |---|---|
 | `stream` | `version` increments on every change and is sent to the agent (desired state). `deleted_at` enables soft delete (BR-02). Indexes: `slug` (unique), `node_id`, `enabled`. |
-| `stream_input.options` | Type-specific JSON, e.g. `{"headers":{"User-Agent":"..."}, "iface":"eth1", "ssm_source":"10.0.0.1", "srt":{"mode":"caller","latency":200,"passphrase":"***"}}`. Secrets are encrypted (AES-GCM, key from env). |
+| `stream_input.options` | Type-specific JSON, e.g. `{"headers":{"User-Agent":"..."}, "iface":"eth1", "ssm_source":"10.0.0.1", "srt":{"mode":"caller","latency":200,"passphrase":"***"}, "analyzeduration":1.5}` (`analyzeduration` — seconds FFmpeg probes the input, 0.5–30, default 1.5; TVR-021). Secrets are encrypted (AES-GCM, key from env). |
 | `stream.processing` | `{"pnr":101, "audio":{"keep_langs":["bul","eng"]}, "drop_subtitles":true, "service_name":"BTV HD"}` |
 | `stream_output.options` | HLS: `{"segment_sec":4, "list_size":6}`; UDP: `{"addr":"239.1.1.10","port":1234,"ttl":4,"iface":"eth1"}` |
 | `subscriber.token` | 32-character base62, generated with `SecureRandom`. Unique index. |

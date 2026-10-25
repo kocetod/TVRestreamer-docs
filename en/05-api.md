@@ -38,7 +38,7 @@
 | GET | `/streams/{id}` | Detail + current status | Viewer+ |
 | PUT | `/streams/{id}` | Full update (`version` required) | Operator+ |
 | DELETE | `/streams/{id}` | Soft delete | Operator+ |
-| POST | `/streams/{id}/actions/start` · `stop` · `restart` | Control | Operator+ |
+| POST | `/streams/{id}/actions/start` · `stop` · `restart` | Control (TVR-021): `start`/`stop` set `enabled` (kept across restarts), `restart` restarts the processes on the agent. 202 + the channel; 409 — `restart` of a stopped channel, without a node or with a disconnected node; 404 — unknown action | Operator+ |
 | POST | `/streams/{id}/actions/switch-input` | `{inputId, pin: bool}` | Operator+ |
 | POST | `/streams/{id}/clone` | Clone | Operator+ |
 | GET | `/streams/{id}/analyzer` | PIDs, codecs, errors, bitrate (live) | Viewer+ |

@@ -178,8 +178,22 @@ paths:
         schema: {type: string, enum: [start, stop, restart]}
     post:
       tags: [streams]
+      description: |
+        FR-STR-05 (TVR-021). `start` / `stop` set `enabled` (the channel stays started or stopped after restarts
+        of core and agent; the version grows unless it already was in that state). `restart` sends a restart
+        command to the agent that runs the channel; nothing changes in the database. ADMIN or OPERATOR.
       responses:
-        '202': {description: Accepted}
+        '202':
+          description: Accepted; the channel as it is now (the agent applies the action within 1–3 s)
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Stream'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409':
+          description: restart of a stopped channel, of a channel without a node, or whose node is not connected
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
   /streams/{id}/actions/switch-input:
     parameters: [{$ref: '#/components/parameters/id'}]
     post:
