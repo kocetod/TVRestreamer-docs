@@ -200,7 +200,7 @@ erDiagram
 | `sess:{subscriberId}` | HASH | — | `{sessionKey → JSON(stream, ip, ua, edge, started, last_seen)}` |
 | `sess:last:{sessionKey}` | STRING | 30 s | Session heartbeat (refreshed on every playlist request) |
 | `auth:{token}` | STRING (JSON) | 10 s | Cached subscriber rights (status, expiry, slugs, limit) |
-| `stream:status:{id}` | HASH | 30 s | Last status from agent (for the UI) |
+| `stream:status:{id}` | STRING (JSON) | 30 s | Last status from the agent: state, activeInputId, bitrateIn, since, lastError, nodeId, at (TVR-020) |
 | `rl:auth:{ip}` | STRING | 60 s | Rate limit for failed attempts |
 | channel `events` | PUB/SUB | — | Events for UI SSE clients |
 

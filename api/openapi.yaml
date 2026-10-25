@@ -83,7 +83,8 @@ paths:
       tags: [streams]
       description: |
         List of channels (any admin role). Sortable by name, slug, lcn, enabled, createdAt, updatedAt
-        (default name,asc). Until the agent reports runtime state (TVR-020) every channel is STOPPED.
+        (default name,asc). `status` filters by the runtime state reported by the agent (TVR-020); an
+        unknown value is 400.
       parameters:
         - {name: status, in: query, schema: {$ref: '#/components/schemas/StreamState'}}
         - {name: categoryId, in: query, schema: {type: string, format: uuid}}
@@ -662,12 +663,16 @@ components:
             updatedAt: {type: string, format: date-time}
             status:
               type: object
+              description: >-
+                Runtime state reported by the agent (TVR-020). STOPPED when the channel is disabled or no report
+                came in the last 30 s; then the other fields are null.
               properties:
                 state: {$ref: '#/components/schemas/StreamState'}
                 activeInputId: {type: string, format: uuid, nullable: true}
-                bitrateIn: {type: integer, description: bits/s}
-                viewers: {type: integer}
-                since: {type: string, format: date-time}
+                bitrateIn: {type: integer, format: int64, nullable: true, description: 'bits/s of the input (0 while STARTING)'}
+                since: {type: string, format: date-time, nullable: true, description: when the channel entered this state}
+                lastError: {type: string, nullable: true, description: 'why the channel is OFFLINE or ERROR'}
+                viewers: {type: integer, description: Not reported yet (sessions, S5)}
             urls:
               type: object
               properties:

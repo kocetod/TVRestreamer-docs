@@ -78,12 +78,12 @@ POST /api/v1/streams
 201 Created
 {
   "id": "5b7d…", "slug": "btv-hd", "version": 0,
-  "status": {"state": "STOPPED", "activeInputId": null},
+  "status": {"state": "STOPPED", "activeInputId": null, "bitrateIn": null, "since": null, "lastError": null},
   "urls": {"hls": "https://tv.example.com/live/btv-hd/index.m3u8", "ts": "https://tv.example.com/ts/btv-hd.ts"}
 }
 ```
 
-> The response contains the whole channel (inputs and outputs with `id`). `version` starts at 0 and grows by 1 with every change. Until the agent reports runtime state (TVR-020), `status.state` is `STOPPED`. Errors: 400 with `errors:[{field, message}]` (e.g. `{"field": "inputs[0].url", "message": "Неподдържан протокол"}`), 409 for a taken slug or a stale `version`.
+> The response contains the whole channel (inputs and outputs with `id`). `version` starts at 0 and grows by 1 with every change. `status` is the runtime state reported by the agent (TVR-020): `STARTING` → `ONLINE` (with `bitrateIn` in bits/s, `activeInputId`, `since`) or `OFFLINE`/`ERROR` with `lastError`; `STOPPED` when the channel is disabled or no report came in the last 30 s. `?status=` filters the list by it (an unknown value → 400). Errors: 400 with `errors:[{field, message}]` (e.g. `{"field": "inputs[0].url", "message": "Неподдържан протокол"}`), 409 for a taken slug or a stale `version`.
 
 ### 2.3 Categories and packages
 
@@ -239,5 +239,7 @@ The full contract lives in the code: `TVRestreamer_Code/tvr-common/src/main/prot
 **Link and enrollment (TVR-017, simplified):** the agent opens the stream to `tvr.grpc.port` (9090) with metadata `authorization: Bearer <token>`; token = the agent's `TVR_AGENT_TOKEN` = core's `TVR_AGENT_ENROLL_TOKEN` (otherwise `UNAUTHENTICATED`). The first message must be a `Hello` with `node_name` (otherwise `FAILED_PRECONDITION` / `INVALID_ARGUMENT`); core finds the node by `node_id`, then by name, or creates it (`INGEST`) and sets it `ONLINE`. A heartbeat every 5 s updates `last_seen_at`; no heartbeat for 15 s → `OFFLINE` (FR-NOD-02). A new connection of the same node closes the old one with `ABORTED`. The agent reconnects with backoff 1 → 30 s. One-time keys and mTLS certificates (FR-NOD-01) come later.
 
 **Desired state and reconciler (TVR-018, ADR-006):** right after `Welcome`, after every channel change through the API (after commit) and on a periodic check every 30 s (`tvr.grpc.desired-resync`) core sends a `DesiredState` — every non-deleted channel of the node (channels without `node_id` go to the only `INGEST`/`ALL_IN_ONE` node, if there is exactly one). The version grows only when the content changes: `max(previous + 1, current time in ms)`, so it also grows across core restarts; a stream gets a snapshot only if its version is newer than the last one sent on it. The agent runs channels that are `enabled`, `ALWAYS_ON` and have an enabled input, stops everything else it started itself, and restarts a channel only when what it runs changed (slug, inputs, HLS options). It answers with `AckDesiredState` (`applied=false` + per-channel `errors` on problems); failed channels are retried every 30 s. `Hello` and `Heartbeat` carry the applied version and the running channels. When the link is lost the channels keep running; the last snapshot is kept on the agent's disk and restored after a restart.
+
+**Channel status (TVR-020, FR-STR-07):** the agent sends a `StreamStatus` for every channel of its snapshot on each change and all of them every 5 s (and right after a reconnect). Until the TS analyzer (S2) the state comes from the HLS output: `ONLINE` while the playlist is rewritten (within 2 × segment + 2 s; `bitrate_in` = size of the last 3 segments / their duration), `STARTING` during the start-up grace (input timeout + 2 × segment + 5 s), then `OFFLINE` with `last_error` (age of the data, input restarts, exit code — never FFmpeg output, it may contain the URL); `ERROR` for a channel that could not start; `STOPPED` once when the channel stops running there. Core accepts reports only for channels in the node's snapshot and keeps the last one in Redis `stream:status:<id>` (JSON, TTL 30 s); `since` changes only with the state.
 
 **Compatibility:** field numbers and types never change; removed fields become `reserved`; every enum's zero value is `*_UNSPECIFIED`; an incompatible change means a new package `tvr.agent.v2`.
