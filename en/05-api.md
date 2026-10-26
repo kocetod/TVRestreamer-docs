@@ -41,7 +41,7 @@
 | POST | `/streams/{id}/actions/start` · `stop` · `restart` | Control (TVR-021): `start`/`stop` set `enabled` (kept across restarts), `restart` restarts the processes on the agent. 202 + the channel; 409 — `restart` of a stopped channel, without a node or with a disconnected node; 404 — unknown action | Operator+ |
 | POST | `/streams/{id}/actions/switch-input` | `{inputId, pin: bool}` | Operator+ |
 | POST | `/streams/{id}/clone` | Clone | Operator+ |
-| GET | `/streams/{id}/analyzer` | PIDs, codecs, errors, bitrate (live) | Viewer+ |
+| GET | `/streams/{id}/analyzer` | Bitrate, PIDs with codecs and languages, CC errors (live, every 5 s; TVR-026) | Viewer+ |
 | GET | `/streams/{id}/metrics?from&to&step` | Time series (bitrate, CC, viewers) | Viewer+ |
 | GET | `/streams/{id}/events` | Event history | Viewer+ |
 | GET | `/streams/{id}/logs?tail=500` | Last log lines from the agent (1–1000, TVR-023; SSE `/logs/stream` later) | Operator+ |
@@ -84,6 +84,28 @@ POST /api/v1/streams
 ```
 
 > The response contains the whole channel (inputs and outputs with `id`). `version` starts at 0 and grows by 1 with every change. `status` is the runtime state reported by the agent (TVR-020): `STARTING` → `ONLINE` (with `bitrateIn` in bits/s, `activeInputId`, `since`) or `OFFLINE`/`ERROR` with `lastError`; `STOPPED` when the channel is disabled or no report came in the last 30 s. `?status=` filters the list by it (an unknown value → 400). Errors: 400 with `errors:[{field, message}]` (e.g. `{"field": "inputs[0].url", "message": "Неподдържан протокол"}`), 409 for a taken slug or a stale `version`.
+
+**Analyzer (TVR-026):**
+
+```json
+GET /api/v1/streams/5b7d…/analyzer
+
+200 OK
+{
+  "streamId": "5b7d…", "nodeId": "a12e…", "activeInputId": "2fc3…", "at": "2026-10-26T12:57:45.469Z",
+  "bitrate": 2225493, "ccErrorsPerMin": 0, "scrambled": false,
+  "pids": [
+    {"pid": 0,    "type": "PSI",   "codec": null,   "language": null, "bitrate": 12633,   "ccErrors": 0, "scrambled": false},
+    {"pid": 256,  "type": "VIDEO", "codec": "h264", "language": null, "bitrate": 2056561, "ccErrors": 0, "scrambled": false},
+    {"pid": 257,  "type": "AUDIO", "codec": "aac",  "language": "bul", "bitrate": 141021, "ccErrors": 0, "scrambled": false},
+    {"pid": 4096, "type": "PSI",   "codec": null,   "language": null, "bitrate": 12633,   "ccErrors": 0, "scrambled": false}
+  ],
+  "video": {"pid": 256, "type": "VIDEO", "codec": "h264", …},
+  "audio": [{"pid": 257, "type": "AUDIO", "codec": "aac", "language": "bul", …}]
+}
+```
+
+> The agent's TsSwitcher analyses the active input: bitrate of the whole TS and of every PID (5 s average), codecs and languages from the PMT, CC errors, scrambling. It comes with the channel status (every 5 s) and is kept in Redis for 30 s. `at: null` (and empty `pids`) = no data: the channel is stopped, still starting, or the agent does not report. 404 for an unknown channel.
 
 **Channel log (TVR-023):**
 

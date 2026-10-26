@@ -845,54 +845,38 @@ components:
             probeMs: {type: integer, format: int64}
     AnalyzerSnapshot:
       type: object
+      description: |
+        What the TS analyzer of the agent measures on the active input (TVR-026, FR-ANL-01/05). Comes with the
+        status reports (every 5 s); `at = null` means no data (stopped, starting, or no report for 30 s).
+        PCR jitter, programs/SDT names and video resolution come with later analyzer tickets.
       properties:
-        bitrate: {type: integer}
-        ccErrorsPerMin: {type: integer}
-        pcrJitterMs: {type: number}
+        streamId: {type: string, format: uuid}
+        nodeId: {type: string, format: uuid, nullable: true}
+        activeInputId: {type: string, format: uuid, nullable: true}
+        at: {type: string, format: date-time, nullable: true}
+        bitrate: {type: integer, format: int64, description: bit/s of the whole TS}
+        ccErrorsPerMin: {type: integer, format: int64}
         scrambled: {type: boolean}
-        programs:
-          type: array
-          items:
-            type: object
-            properties:
-              pnr: {type: integer}
-              serviceName: {type: string}
-              provider: {type: string}
         pids:
           type: array
-          items:
-            type: object
-            properties:
-              pid: {type: integer}
-              type: {type: string, enum: [VIDEO, AUDIO, SUBTITLE, DATA, PMT, PAT, SDT, EIT, OTHER]}
-              codec: {type: string, example: h264}
-              lang: {type: string}
-              bitrate: {type: integer}
-              ccErrors: {type: integer}
-              scrambled: {type: boolean}
+          items: {$ref: '#/components/schemas/AnalyzerPid'}
         video:
-          type: object
-          properties:
-            codec: {type: string}
-            width: {type: integer}
-            height: {type: integer}
-            fps: {type: number}
-            profile: {type: string}
-    CategoryInput:
-      type: object
-      required: [name]
-      properties:
-        name: {type: string, maxLength: 100, example: Новини}
-        sortOrder: {type: integer, minimum: 0, maximum: 100000, description: 'Lower first; on create default = last'}
-    Category:
+          allOf: [{$ref: '#/components/schemas/AnalyzerPid'}]
+          nullable: true
+          description: the first video PID
+        audio:
+          type: array
+          items: {$ref: '#/components/schemas/AnalyzerPid'}
+    AnalyzerPid:
       type: object
       properties:
-        id: {type: string, format: uuid}
-        name: {type: string}
-        sortOrder: {type: integer}
-        streamCount: {type: integer, description: 'Channels (not deleted) in the category'}
-        createdAt: {type: string, format: date-time}
-        updatedAt: {type: string, format: date-time}
+        pid: {type: integer}
+        type: {type: string, enum: [VIDEO, AUDIO, SUBTITLE, DATA, PSI]}
+        codec: {type: string, nullable: true, example: h264}
+        language: {type: string, nullable: true, example: bul}
+        bitrate: {type: integer, format: int64}
+        ccErrors: {type: integer, format: int64, description: in the agent's measurement window (5 s)}
+        scrambled: {type: boolean}
     Package:
       type: object
       required: [name]

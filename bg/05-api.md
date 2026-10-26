@@ -41,7 +41,7 @@
 | POST | `/streams/{id}/actions/start` · `stop` · `restart` | Управление (TVR-021): `start`/`stop` сменят `enabled` (остава след рестарт), `restart` рестартира процесите на агента. 202 + каналът; 409 — `restart` на спрян канал, без сървър или с несвързан сървър; 404 — непознато действие | Operator+ |
 | POST | `/streams/{id}/actions/switch-input` | `{inputId, pin: bool}` | Operator+ |
 | POST | `/streams/{id}/clone` | Клониране | Operator+ |
-| GET | `/streams/{id}/analyzer` | PID-ове, кодеци, грешки, битрейт (на живо) | Viewer+ |
+| GET | `/streams/{id}/analyzer` | Битрейт, PID-ове с кодеци и езици, CC грешки (на живо, на 5 сек; TVR-026) | Viewer+ |
 | GET | `/streams/{id}/metrics?from&to&step` | Времеви редове (битрейт, CC, зрители) | Viewer+ |
 | GET | `/streams/{id}/events` | История на събитията | Viewer+ |
 | GET | `/streams/{id}/logs?tail=500` | Последни редове лог от агента (1–1000, TVR-023; SSE `/logs/stream` — по-късно) | Operator+ |
@@ -84,6 +84,28 @@ POST /api/v1/streams
 ```
 
 > Отговорът съдържа целия канал (входове и изходи с `id`). `version` започва от 0 и расте с 1 при всяка промяна. `status` е състоянието, докладвано от агента (TVR-020): `STARTING` → `ONLINE` (с `bitrateIn` в бита/сек, `activeInputId`, `since`) или `OFFLINE`/`ERROR` с `lastError`; `STOPPED`, когато каналът е изключен или няма доклад през последните 30 сек. `?status=` филтрира списъка по него (непозната стойност → 400). Грешки: 400 с `errors:[{field, message}]` (напр. `{"field": "inputs[0].url", "message": "Неподдържан протокол"}`), 409 при зает slug или стара `version`.
+
+**Анализатор (TVR-026):**
+
+```json
+GET /api/v1/streams/5b7d…/analyzer
+
+200 OK
+{
+  "streamId": "5b7d…", "nodeId": "a12e…", "activeInputId": "2fc3…", "at": "2026-10-26T12:57:45.469Z",
+  "bitrate": 2225493, "ccErrorsPerMin": 0, "scrambled": false,
+  "pids": [
+    {"pid": 0,    "type": "PSI",   "codec": null,   "language": null, "bitrate": 12633,   "ccErrors": 0, "scrambled": false},
+    {"pid": 256,  "type": "VIDEO", "codec": "h264", "language": null, "bitrate": 2056561, "ccErrors": 0, "scrambled": false},
+    {"pid": 257,  "type": "AUDIO", "codec": "aac",  "language": "bul", "bitrate": 141021, "ccErrors": 0, "scrambled": false},
+    {"pid": 4096, "type": "PSI",   "codec": null,   "language": null, "bitrate": 12633,   "ccErrors": 0, "scrambled": false}
+  ],
+  "video": {"pid": 256, "type": "VIDEO", "codec": "h264", …},
+  "audio": [{"pid": 257, "type": "AUDIO", "codec": "aac", "language": "bul", …}]
+}
+```
+
+> TsSwitcher на агента анализира активния вход: битрейт на целия TS и на всеки PID (средно за 5 сек), кодеци и езици от PMT, CC грешки, scrambling. Идва със статуса на канала (на 5 сек) и се пази в Redis 30 сек. `at: null` (и празни `pids`) = няма данни: каналът е спрян, още тръгва или агентът не докладва. 404 за непознат канал.
 
 **Лог на канала (TVR-023):**
 
