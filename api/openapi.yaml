@@ -194,6 +194,38 @@ paths:
           content:
             application/problem+json:
               schema: {$ref: '#/components/schemas/Problem'}
+  /streams/{id}/logs:
+    parameters: [{$ref: '#/components/parameters/id'}]
+    get:
+      tags: [streams]
+      summary: Last lines of the channel log (FR-LOG-01, TVR-023)
+      description: |
+        core asks the agent of the channel's node (gRPC `FetchLogs`) and waits up to 5 s
+        (`tvr.grpc.logs-timeout`). The agent keeps the last 1 000 lines per channel (FFmpeg output and its own
+        events: start, exit, restart), also after the channel stops, until the agent restarts. URLs in the lines
+        are redacted (password, token). ADMIN or OPERATOR.
+      parameters:
+        - {name: tail, in: query, schema: {type: integer, default: 500, minimum: 1, maximum: 1000}}
+      responses:
+        '200':
+          description: The lines, oldest first
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/StreamLog'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409':
+          description: the channel has no node, or its node is not connected
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+        '504':
+          description: the agent did not answer within 5 s
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
   /streams/{id}/actions/switch-input:
     parameters: [{$ref: '#/components/parameters/id'}]
     post:
@@ -712,6 +744,22 @@ components:
               properties:
                 hls: {type: string, format: uri}
                 ts: {type: string, format: uri}
+    StreamLog:
+      type: object
+      properties:
+        streamId: {type: string, format: uuid}
+        nodeId: {type: string, format: uuid, description: the node that sent the log}
+        tail: {type: integer}
+        found: {type: boolean, description: 'false: the agent has no log for the channel (it has not run there since the agent started)'}
+        lines:
+          type: array
+          items:
+            type: object
+            properties:
+              at: {type: string, format: date-time}
+              level: {type: string, enum: [DEBUG, INFO, WARN, ERROR], description: guessed from the words in the line}
+              source: {type: string, example: btv-hd/input-1, description: 'process (<slug>/input-N, <slug>/packager) or agent'}
+              text: {type: string}
     ProbeRequest:
       type: object
       required: [type, url]

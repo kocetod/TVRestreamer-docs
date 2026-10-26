@@ -44,7 +44,7 @@
 | GET | `/streams/{id}/analyzer` | PID-ове, кодеци, грешки, битрейт (на живо) | Viewer+ |
 | GET | `/streams/{id}/metrics?from&to&step` | Времеви редове (битрейт, CC, зрители) | Viewer+ |
 | GET | `/streams/{id}/events` | История на събитията | Viewer+ |
-| GET | `/streams/{id}/logs?tail=500` | Последни редове лог (+ SSE `/logs/stream`) | Operator+ |
+| GET | `/streams/{id}/logs?tail=500` | Последни редове лог от агента (1–1000, TVR-023; SSE `/logs/stream` — по-късно) | Operator+ |
 | GET | `/streams/{id}/thumbnail.jpg` | Последна снимка | Viewer+ |
 | POST | `/streams/bulk` | `{ids[], action: start\|stop\|move\|addToPackage, params}` | Operator+ |
 | POST | `/inputs/probe` | `{type, url, timeoutSec?, options?}` → резултат от ffprobe до 10 сек (FR-INP-07, TVR-022) | Operator+ |
@@ -84,6 +84,24 @@ POST /api/v1/streams
 ```
 
 > Отговорът съдържа целия канал (входове и изходи с `id`). `version` започва от 0 и расте с 1 при всяка промяна. `status` е състоянието, докладвано от агента (TVR-020): `STARTING` → `ONLINE` (с `bitrateIn` в бита/сек, `activeInputId`, `since`) или `OFFLINE`/`ERROR` с `lastError`; `STOPPED`, когато каналът е изключен или няма доклад през последните 30 сек. `?status=` филтрира списъка по него (непозната стойност → 400). Грешки: 400 с `errors:[{field, message}]` (напр. `{"field": "inputs[0].url", "message": "Неподдържан протокол"}`), 409 при зает slug или стара `version`.
+
+**Лог на канала (TVR-023):**
+
+```json
+GET /api/v1/streams/5b7d…/logs?tail=3
+
+200 OK
+{
+  "streamId": "5b7d…", "nodeId": "a12e…", "tail": 3, "found": true,
+  "lines": [
+    {"at": "2026-10-26T09:00:00.250Z", "level": "INFO", "source": "agent", "text": "btv-hd/input-1 started (pid 4242): ffmpeg … -i http://user:****@provider/btv.ts …"},
+    {"at": "2026-10-26T09:05:12.031Z", "level": "WARN", "source": "agent", "text": "btv-hd/input-1 exited with code 137 after 5m11s; restart in 1s"},
+    {"at": "2026-10-26T09:05:13.118Z", "level": "INFO", "source": "agent", "text": "btv-hd/input-1 started (pid 4371): …"}
+  ]
+}
+```
+
+> Core пита агента на сървъра на канала (gRPC `FetchLogs`) и чака до 5 сек. Агентът пази последните 1 000 реда на канал (изход на FFmpeg + събития старт/изход/рестарт), и след спиране на канала — до рестарт на агента. URL-ите в редовете са с маскирани пароли/токени. `level` е предположение по думите в реда. Грешки: 400 (`tail` извън 1–1000), 404, 409 (няма сървър / сървърът не е свързан), 504 (агентът не отговори до 5 сек).
 
 **Тест на вход (TVR-022):**
 
@@ -227,7 +245,7 @@ message AgentMessage {
 message CoreMessage {
   oneof msg {
     DesiredState desired = 1;   // пълен snapshot + version
-    Command command = 2;        // RESTART, SWITCH_INPUT, KICK, SUBSCRIBE_LOGS
+    Command command = 2;        // RESTART, SWITCH_INPUT, KICK, SUBSCRIBE_LOGS, FETCH_LOGS
   }
 }
 

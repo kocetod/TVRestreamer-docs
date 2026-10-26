@@ -44,7 +44,7 @@
 | GET | `/streams/{id}/analyzer` | PIDs, codecs, errors, bitrate (live) | Viewer+ |
 | GET | `/streams/{id}/metrics?from&to&step` | Time series (bitrate, CC, viewers) | Viewer+ |
 | GET | `/streams/{id}/events` | Event history | Viewer+ |
-| GET | `/streams/{id}/logs?tail=500` | Last log lines (+ SSE `/logs/stream`) | Operator+ |
+| GET | `/streams/{id}/logs?tail=500` | Last log lines from the agent (1–1000, TVR-023; SSE `/logs/stream` later) | Operator+ |
 | GET | `/streams/{id}/thumbnail.jpg` | Latest thumbnail | Viewer+ |
 | POST | `/streams/bulk` | `{ids[], action: start\|stop\|move\|addToPackage, params}` | Operator+ |
 | POST | `/inputs/probe` | `{type, url, timeoutSec?, options?}` → ffprobe result within 10 s (FR-INP-07, TVR-022) | Operator+ |
@@ -84,6 +84,24 @@ POST /api/v1/streams
 ```
 
 > The response contains the whole channel (inputs and outputs with `id`). `version` starts at 0 and grows by 1 with every change. `status` is the runtime state reported by the agent (TVR-020): `STARTING` → `ONLINE` (with `bitrateIn` in bits/s, `activeInputId`, `since`) or `OFFLINE`/`ERROR` with `lastError`; `STOPPED` when the channel is disabled or no report came in the last 30 s. `?status=` filters the list by it (an unknown value → 400). Errors: 400 with `errors:[{field, message}]` (e.g. `{"field": "inputs[0].url", "message": "Неподдържан протокол"}`), 409 for a taken slug or a stale `version`.
+
+**Channel log (TVR-023):**
+
+```json
+GET /api/v1/streams/5b7d…/logs?tail=3
+
+200 OK
+{
+  "streamId": "5b7d…", "nodeId": "a12e…", "tail": 3, "found": true,
+  "lines": [
+    {"at": "2026-10-26T09:00:00.250Z", "level": "INFO", "source": "agent", "text": "btv-hd/input-1 started (pid 4242): ffmpeg … -i http://user:****@provider/btv.ts …"},
+    {"at": "2026-10-26T09:05:12.031Z", "level": "WARN", "source": "agent", "text": "btv-hd/input-1 exited with code 137 after 5m11s; restart in 1s"},
+    {"at": "2026-10-26T09:05:13.118Z", "level": "INFO", "source": "agent", "text": "btv-hd/input-1 started (pid 4371): …"}
+  ]
+}
+```
+
+> Core asks the agent of the channel's node (gRPC `FetchLogs`) and waits up to 5 s. The agent keeps the last 1 000 lines per channel (FFmpeg output + start/exit/restart events), also after the channel stops, until the agent restarts. URLs in the lines have their passwords/tokens masked. `level` is a guess from the words in the line. Errors: 400 (`tail` outside 1–1000), 404, 409 (no node / node not connected), 504 (the agent did not answer within 5 s).
 
 **Input probe (TVR-022):**
 
@@ -227,7 +245,7 @@ message AgentMessage {
 message CoreMessage {
   oneof msg {
     DesiredState desired = 1;   // full snapshot + version
-    Command command = 2;        // RESTART, SWITCH_INPUT, KICK, SUBSCRIBE_LOGS
+    Command command = 2;        // RESTART, SWITCH_INPUT, KICK, SUBSCRIBE_LOGS, FETCH_LOGS
   }
 }
 
