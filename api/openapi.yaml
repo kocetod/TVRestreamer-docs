@@ -654,6 +654,7 @@ components:
         total: {type: integer}
     StreamState:
       type: string
+      description: 'DEGRADED = the channel plays from a backup input (not the first one by priority) after a failover'
       enum: [STOPPED, STARTING, ONLINE, DEGRADED, OFFLINE, ERROR]
     InputType:
       type: string
@@ -737,7 +738,7 @@ components:
                 activeInputId: {type: string, format: uuid, nullable: true}
                 bitrateIn: {type: integer, format: int64, nullable: true, description: 'bits/s of the input (0 while STARTING)'}
                 since: {type: string, format: date-time, nullable: true, description: when the channel entered this state}
-                lastError: {type: string, nullable: true, description: 'why the channel is OFFLINE or ERROR'}
+                lastError: {type: string, nullable: true, description: 'why the channel is OFFLINE, ERROR or DEGRADED'}
                 viewers: {type: integer, description: Not reported yet (sessions, S5)}
             urls:
               type: object
