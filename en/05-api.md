@@ -47,7 +47,7 @@
 | GET | `/streams/{id}/logs?tail=500` | Last log lines (+ SSE `/logs/stream`) | Operator+ |
 | GET | `/streams/{id}/thumbnail.jpg` | Latest thumbnail | Viewer+ |
 | POST | `/streams/bulk` | `{ids[], action: start\|stop\|move\|addToPackage, params}` | Operator+ |
-| POST | `/inputs/probe` | `{type, url, options}` → ffprobe result (FR-INP-07) | Operator+ |
+| POST | `/inputs/probe` | `{type, url, timeoutSec?, options?}` → ffprobe result within 10 s (FR-INP-07, TVR-022) | Operator+ |
 
 **Example — create a stream:**
 
@@ -84,6 +84,26 @@ POST /api/v1/streams
 ```
 
 > The response contains the whole channel (inputs and outputs with `id`). `version` starts at 0 and grows by 1 with every change. `status` is the runtime state reported by the agent (TVR-020): `STARTING` → `ONLINE` (with `bitrateIn` in bits/s, `activeInputId`, `since`) or `OFFLINE`/`ERROR` with `lastError`; `STOPPED` when the channel is disabled or no report came in the last 30 s. `?status=` filters the list by it (an unknown value → 400). Errors: 400 with `errors:[{field, message}]` (e.g. `{"field": "inputs[0].url", "message": "Неподдържан протокол"}`), 409 for a taken slug or a stale `version`.
+
+**Input probe (TVR-022):**
+
+```json
+POST /api/v1/inputs/probe
+{"type": "HTTP_TS", "url": "http://localhost:9001/a.ts"}
+
+200 OK
+{
+  "format": "mpegts", "formatName": "MPEG-TS (MPEG-2 Transport Stream)", "bitrate": 2631336,
+  "programs": [{"pnr": 101, "serviceName": "Test A", "provider": "TvRestream", "pmtPid": 4096, "pcrPid": 256, "streams": [0, 1]}],
+  "streams": [{"index": 0, "pid": 256, "type": "VIDEO", "codec": "h264", "profile": "Main", "width": 1280, "height": 720, "fps": 25.0, …},
+              {"index": 1, "pid": 257, "type": "AUDIO", "codec": "aac", "lang": "bul", "channels": 2, "sampleRate": 48000, "bitrate": 130532, …}],
+  "video": {"codec": "h264", "profile": "Main", "width": 1280, "height": 720, "fps": 25.0},
+  "audio": [{"codec": "aac", "profile": "LC", "lang": "bul", "channels": 2, "sampleRate": 48000, "bitrate": 130532}],
+  "probeMs": 412
+}
+```
+
+> ffprobe runs on the tvr-core host with a hard limit of 9 s, so the response arrives within 10 s. Errors: 400 with `errors` (the rules of a channel input; DVB cannot be probed); **422** with `code` (`TIMEOUT`, `CONNECTION_REFUSED`, `HOST_NOT_FOUND`, `NETWORK_UNREACHABLE`, `NOT_FOUND`, `ACCESS_DENIED`, `HTTP_ERROR`, `INVALID_DATA`, `NO_STREAMS`, `PROTOCOL_NOT_ALLOWED`, `FAILED`), `reason` (ffprobe's last line) and `probeMs` — `detail` is Bulgarian text, `code` is for the panel's translation; 429 for more than 4 parallel probes; 503 with `code: FFPROBE_MISSING`.
 
 ### 2.3 Categories and packages
 

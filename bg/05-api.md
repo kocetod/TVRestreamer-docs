@@ -47,7 +47,7 @@
 | GET | `/streams/{id}/logs?tail=500` | Последни редове лог (+ SSE `/logs/stream`) | Operator+ |
 | GET | `/streams/{id}/thumbnail.jpg` | Последна снимка | Viewer+ |
 | POST | `/streams/bulk` | `{ids[], action: start\|stop\|move\|addToPackage, params}` | Operator+ |
-| POST | `/inputs/probe` | `{type, url, options}` → резултат от ffprobe (FR-INP-07) | Operator+ |
+| POST | `/inputs/probe` | `{type, url, timeoutSec?, options?}` → резултат от ffprobe до 10 сек (FR-INP-07, TVR-022) | Operator+ |
 
 **Пример — създаване на канал:**
 
@@ -84,6 +84,26 @@ POST /api/v1/streams
 ```
 
 > Отговорът съдържа целия канал (входове и изходи с `id`). `version` започва от 0 и расте с 1 при всяка промяна. `status` е състоянието, докладвано от агента (TVR-020): `STARTING` → `ONLINE` (с `bitrateIn` в бита/сек, `activeInputId`, `since`) или `OFFLINE`/`ERROR` с `lastError`; `STOPPED`, когато каналът е изключен или няма доклад през последните 30 сек. `?status=` филтрира списъка по него (непозната стойност → 400). Грешки: 400 с `errors:[{field, message}]` (напр. `{"field": "inputs[0].url", "message": "Неподдържан протокол"}`), 409 при зает slug или стара `version`.
+
+**Тест на вход (TVR-022):**
+
+```json
+POST /api/v1/inputs/probe
+{"type": "HTTP_TS", "url": "http://localhost:9001/a.ts"}
+
+200 OK
+{
+  "format": "mpegts", "formatName": "MPEG-TS (MPEG-2 Transport Stream)", "bitrate": 2631336,
+  "programs": [{"pnr": 101, "serviceName": "Test A", "provider": "TvRestream", "pmtPid": 4096, "pcrPid": 256, "streams": [0, 1]}],
+  "streams": [{"index": 0, "pid": 256, "type": "VIDEO", "codec": "h264", "profile": "Main", "width": 1280, "height": 720, "fps": 25.0, …},
+              {"index": 1, "pid": 257, "type": "AUDIO", "codec": "aac", "lang": "bul", "channels": 2, "sampleRate": 48000, "bitrate": 130532, …}],
+  "video": {"codec": "h264", "profile": "Main", "width": 1280, "height": 720, "fps": 25.0},
+  "audio": [{"codec": "aac", "profile": "LC", "lang": "bul", "channels": 2, "sampleRate": 48000, "bitrate": 130532}],
+  "probeMs": 412
+}
+```
+
+> ffprobe се пуска на машината на tvr-core с твърд лимит 9 сек — отговорът идва до 10 сек. Грешки: 400 с `errors` (правилата за вход на канал; DVB не се тества); **422** с `code` (`TIMEOUT`, `CONNECTION_REFUSED`, `HOST_NOT_FOUND`, `NETWORK_UNREACHABLE`, `NOT_FOUND`, `ACCESS_DENIED`, `HTTP_ERROR`, `INVALID_DATA`, `NO_STREAMS`, `PROTOCOL_NOT_ALLOWED`, `FAILED`), `reason` (последният ред от ffprobe) и `probeMs` — `detail` е текст на български, `code` е за превода в панела; 429 при повече от 4 едновременни теста; 503 с `code: FFPROBE_MISSING`.
 
 ### 2.3 Категории и пакети
 

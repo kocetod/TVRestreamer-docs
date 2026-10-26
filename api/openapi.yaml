@@ -222,16 +222,36 @@ paths:
   /inputs/probe:
     post:
       tags: [streams]
+      summary: Test an input with ffprobe before saving it (FR-INP-07, TVR-022)
+      description: |
+        Runs ffprobe on the tvr-core host with a hard limit of 9 s (the response arrives within 10 s).
+        ADMIN and OPERATOR only. Accepts an InputDef; only type, url, timeoutSec and
+        options.userAgent / options.rtspTransport are used. DVB inputs cannot be probed.
       requestBody:
+        required: true
         content:
           application/json:
-            schema: {$ref: '#/components/schemas/InputDef'}
+            schema: {$ref: '#/components/schemas/ProbeRequest'}
       responses:
         '200':
           description: Probe result
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/AnalyzerSnapshot'}
+              schema: {$ref: '#/components/schemas/ProbeResult'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '422':
+          description: The input could not be read; `code` says why
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/ProbeProblem'}
+        '429': {$ref: '#/components/responses/Problem'}
+        '503':
+          description: ffprobe is not installed on the server (`code` FFPROBE_MISSING)
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/ProbeProblem'}
 
   /categories:
     get:
@@ -692,6 +712,89 @@ components:
               properties:
                 hls: {type: string, format: uri}
                 ts: {type: string, format: uri}
+    ProbeRequest:
+      type: object
+      required: [type, url]
+      description: The fields of an InputDef the probe uses; other InputDef fields are ignored.
+      properties:
+        type: {$ref: '#/components/schemas/InputType'}
+        url: {type: string, maxLength: 2000, example: 'http://localhost:9001/a.ts', description: 'SEC-07: network protocols only'}
+        timeoutSec: {type: integer, default: 5, minimum: 1, maximum: 120, description: 'Network timeout, never longer than the probe limit (9 s)'}
+        options:
+          type: object
+          properties:
+            userAgent: {type: string, maxLength: 200, description: HTTP_TS / HLS only}
+            rtspTransport: {type: string, enum: [tcp, udp], description: RTSP only}
+          additionalProperties: true
+    ProbeResult:
+      type: object
+      properties:
+        format: {type: string, example: mpegts}
+        formatName: {type: string, example: 'MPEG-TS (MPEG-2 Transport Stream)'}
+        bitrate: {type: integer, format: int64, nullable: true, description: bit/s}
+        programs:
+          type: array
+          items:
+            type: object
+            properties:
+              pnr: {type: integer}
+              serviceName: {type: string}
+              provider: {type: string}
+              pmtPid: {type: integer}
+              pcrPid: {type: integer}
+              streams: {type: array, items: {type: integer}, description: indexes into streams}
+        streams:
+          type: array
+          items:
+            type: object
+            properties:
+              index: {type: integer}
+              pid: {type: integer, nullable: true}
+              type: {type: string, enum: [VIDEO, AUDIO, SUBTITLE, DATA, OTHER]}
+              codec: {type: string, example: h264}
+              codecName: {type: string}
+              profile: {type: string}
+              lang: {type: string}
+              bitrate: {type: integer, format: int64}
+              width: {type: integer}
+              height: {type: integer}
+              fps: {type: number}
+              channels: {type: integer}
+              channelLayout: {type: string}
+              sampleRate: {type: integer}
+        video:
+          type: object
+          nullable: true
+          properties:
+            codec: {type: string}
+            profile: {type: string}
+            width: {type: integer}
+            height: {type: integer}
+            fps: {type: number}
+            bitrate: {type: integer, format: int64}
+        audio:
+          type: array
+          items:
+            type: object
+            properties:
+              codec: {type: string}
+              profile: {type: string}
+              lang: {type: string}
+              channels: {type: integer}
+              sampleRate: {type: integer}
+              bitrate: {type: integer, format: int64}
+        probeMs: {type: integer, format: int64}
+    ProbeProblem:
+      allOf:
+        - {$ref: '#/components/schemas/Problem'}
+        - type: object
+          properties:
+            code:
+              type: string
+              enum: [TIMEOUT, CONNECTION_REFUSED, HOST_NOT_FOUND, NETWORK_UNREACHABLE, NOT_FOUND, ACCESS_DENIED,
+                     HTTP_ERROR, INVALID_DATA, NO_STREAMS, PROTOCOL_NOT_ALLOWED, FAILED, FFPROBE_MISSING]
+            reason: {type: string, example: Connection refused, description: "ffprobe's last error line"}
+            probeMs: {type: integer, format: int64}
     AnalyzerSnapshot:
       type: object
       properties:
