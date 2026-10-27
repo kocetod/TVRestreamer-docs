@@ -43,7 +43,7 @@
 | POST | `/streams/{id}/clone` | Clone | Operator+ |
 | GET | `/streams/{id}/analyzer` | Bitrate, PIDs with codecs and languages, CC errors (live, every 5 s; TVR-026) | Viewer+ |
 | GET | `/streams/{id}/metrics?from&to&step` | Time series (bitrate, CC, viewers) | Viewer+ |
-| GET | `/streams/{id}/events` | Event history | Viewer+ |
+| GET | `/streams/{id}/events` | Event history, newest first: `FAILOVER`, `STATUS`, … Filters `type` (several), `from`, `to` (ISO-8601), `page`, `size` | Viewer+ |
 | GET | `/streams/{id}/logs?tail=500` | Last log lines from the agent (1–1000, TVR-023; SSE `/logs/stream` later) | Operator+ |
 | GET | `/streams/{id}/thumbnail.jpg` | Latest thumbnail | Viewer+ |
 | POST | `/streams/bulk` | `{ids[], action: start\|stop\|move\|addToPackage, params}` | Operator+ |

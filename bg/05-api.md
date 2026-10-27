@@ -43,7 +43,7 @@
 | POST | `/streams/{id}/clone` | Клониране | Operator+ |
 | GET | `/streams/{id}/analyzer` | Битрейт, PID-ове с кодеци и езици, CC грешки (на живо, на 5 сек; TVR-026) | Viewer+ |
 | GET | `/streams/{id}/metrics?from&to&step` | Времеви редове (битрейт, CC, зрители) | Viewer+ |
-| GET | `/streams/{id}/events` | История на събитията | Viewer+ |
+| GET | `/streams/{id}/events` | История на събитията, най-новите първо: `FAILOVER`, `STATUS`, … Филтри `type` (няколко), `from`, `to` (ISO-8601), `page`, `size` | Viewer+ |
 | GET | `/streams/{id}/logs?tail=500` | Последни редове лог от агента (1–1000, TVR-023; SSE `/logs/stream` — по-късно) | Operator+ |
 | GET | `/streams/{id}/thumbnail.jpg` | Последна снимка | Viewer+ |
 | POST | `/streams/bulk` | `{ids[], action: start\|stop\|move\|addToPackage, params}` | Operator+ |

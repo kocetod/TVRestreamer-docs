@@ -128,7 +128,10 @@ erDiagram
         bigint id PK
         uuid stream_id FK
         timestamptz ts
-        string type "STATUS|FAILOVER|RECOVERED|ERROR"
+        string type "STATUS|FAILOVER|PROCESS_EXITED|…"
+        uuid node_id
+        uuid input_id
+        string message
         jsonb data
     }
     ADMIN_USER {
@@ -190,7 +193,7 @@ erDiagram
 | `stream_output.options` | HLS: `{"segment_sec":4, "list_size":6}`; UDP: `{"addr":"239.1.1.10","port":1234,"ttl":4,"iface":"eth1"}` |
 | `subscriber.token` | 32-character base62, generated with `SecureRandom`. Unique index. |
 | `session_history` | Monthly partitioning (`PARTITION BY RANGE (started_at)`), 90-day retention. |
-| `stream_event` | Monthly partitioning, 180-day retention. |
+| `stream_event` | Monthly partitioning (UTC, `stream_event_YYYY_MM`, function `tvr_stream_event_partition`), 180-day retention: every night next month is created and whole months that ended more than 180 days ago are dropped (TVR-029). `STATUS` = state change (`data.from`/`to`); `FAILOVER` = input switch (`data.from`/`to` — input ids, `reason`). |
 | `audit_log` | Append-only, 1-year retention. |
 
 ## 3. Data in Redis

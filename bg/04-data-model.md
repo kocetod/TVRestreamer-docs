@@ -128,7 +128,10 @@ erDiagram
         bigint id PK
         uuid stream_id FK
         timestamptz ts
-        string type "STATUS|FAILOVER|RECOVERED|ERROR"
+        string type "STATUS|FAILOVER|PROCESS_EXITED|…"
+        uuid node_id
+        uuid input_id
+        string message
         jsonb data
     }
     ADMIN_USER {
@@ -190,7 +193,7 @@ erDiagram
 | `stream_output.options` | HLS: `{"segment_sec":4, "list_size":6}`; UDP: `{"addr":"239.1.1.10","port":1234,"ttl":4,"iface":"eth1"}` |
 | `subscriber.token` | 32 символа base62, генерира се с `SecureRandom`. Индекс unique. |
 | `session_history` | Партициониране по месец (`PARTITION BY RANGE (started_at)`), съхранение 90 дни. |
-| `stream_event` | Партициониране по месец, съхранение 180 дни. |
+| `stream_event` | Партициониране по месец (UTC, `stream_event_YYYY_MM`, функция `tvr_stream_event_partition`), съхранение 180 дни: всяка нощ се създава следващият месец и се трият целите месеци, изтекли преди 180 дни (TVR-029). `STATUS` = смяна на състоянието (`data.from`/`to`); `FAILOVER` = смяна на входа (`data.from`/`to` — id на входове, `reason`). |
 | `audit_log` | Append-only, съхранение 1 година. |
 
 ## 3. Данни в Redis
