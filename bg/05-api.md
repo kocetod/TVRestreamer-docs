@@ -195,7 +195,7 @@ POST /api/v1/inputs/probe
 | Метод | Път | Описание |
 |---|---|---|
 | GET | `/dashboard/summary` | Броячи за таблото |
-| GET | `/events` | SSE: `stream.status`, `stream.failover`, `node.metrics`, `session.count`, `alert` |
+| GET | `/events?types=` | SSE (TVR-030): `stream.status`, `stream.failover`, `stream.event`, `node.status`, `node.metrics`; по-късно `session.count`, `alert`. Вижте по-долу | Viewer+ |
 | GET/POST/PUT/DELETE | `/alert-rules`, `/notification-channels` | Правила и канали за известия |
 | POST | `/notification-channels/{id}/test` | Тестово известие |
 | GET | `/alerts?state=FIRING` · POST `/alerts/{id}/ack` | Инциденти |
@@ -205,6 +205,37 @@ POST /api/v1/inputs/probe
 | GET/POST | `/config/export` · `/config/import` | Пълен backup на конфигурацията |
 | GET | `/reports/{type}?from&to` | `top-streams`, `peak-viewers`, `uptime`, `subscribers` |
 | GET/POST/DELETE | `/admin-users`, `/api-keys` | Администратори и ключове |
+
+**Реално време — `GET /api/v1/events` (TVR-030, FR-MON-02, NFR-10 ≤ 2 сек).** Server-Sent Events (`text/event-stream`). Токенът е в `Authorization: Bearer …` или — за `EventSource` в браузъра, който не праща заглавки — в `?access_token=` (само за този път). `?types=` избира типовете (със запетая; `stream.*`, `node.*`); без него идват всички, непознат тип → 400.
+
+```text
+event: ready
+data: {"at":"2026-10-28T18:01:09Z","until":"2026-10-28T18:16:09Z","types":["node.metrics","node.status","stream.event","stream.failover","stream.status"]}
+retry: 3000
+
+event: stream.status
+data: {"streamId":"…","state":"ONLINE","previousState":"STARTING","changed":true,"activeInputId":"…","bitrateIn":2236545,"since":"…","lastError":null,"nodeId":"…","at":"…"}
+
+: ping
+
+event: bye
+data: {"reason":"token-expired"}
+```
+
+| Събитие | Кога | `data` |
+|---|---|---|
+| `ready` | веднага след свързване | `at`, `until` (кога потокът ще свърши), `types` |
+| `stream.status` | всеки отчет на агента (≈ 5 сек и при промяна) и Stop през API | `streamId, state, previousState, changed, activeInputId, bitrateIn, since, lastError, nodeId, at`; `changed` = ново състояние или вход |
+| `stream.failover` | агентът смени входа | `streamId, type: FAILOVER, nodeId, inputId, message, data{from, to, from_index, to_index, reason}, at` |
+| `stream.event` | друго събитие на агента (`PROCESS_EXITED` …) | като `stream.failover` |
+| `node.status` | сървър стана ONLINE / OFFLINE | `nodeId, name, status, lastSeenAt, at` |
+| `node.metrics` | метрики от агента (когато ги праща — TVR-035) | `nodeId, at, cpuPercent, memUsedBytes, memTotalBytes, netRxBps, netTxBps, tmpfsFreeBytes, streamsRunning, loadAvg1m` |
+| `bye` | край на потока | `reason`: `token-expired`, `max-duration` (1 ч), `slow-client` (> 1000 чакащи събития), `shutdown` |
+
+- `: ping` на 15 сек без събития (проксита не затварят връзката).
+- Потокът свършва, когато токенът изтече: клиентът се свързва отново с нов токен и презарежда списъците през REST — събитията не се преиграват (няма `Last-Event-ID`).
+- Между инстанциите на core събитията минават през Redis pub/sub (канал `events`, документ 04 §3), така че всеки клиент вижда всичко. Без Redis събитията стигат само до клиентите на същата инстанция.
+- Най-много 500 отворени потока на инстанция (`tvr.live.max-clients`) → 503. nginx пред core не трябва да буферира (`X-Accel-Buffering: no` се праща).
 
 ## 3. Публични (абонатски) endpoints — на edge домейна
 

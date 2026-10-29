@@ -205,7 +205,7 @@ erDiagram
 | `auth:{token}` | STRING (JSON) | 10 s | Cached subscriber rights (status, expiry, slugs, limit) |
 | `stream:status:{id}` | STRING (JSON) | 30 s | Last status from the agent: state, activeInputId, bitrateIn, since, lastError, nodeId, at (TVR-020) |
 | `rl:auth:{ip}` | STRING | 60 s | Rate limit for failed attempts |
-| channel `events` | PUB/SUB | — | Events for UI SSE clients |
+| channel `events` | PUB/SUB | — | Events for UI SSE clients (TVR-030): message `<type>\n<JSON>`, e.g. `stream.status`; every core instance passes them to its own clients |
 
 ## 4. Subscriber lifecycle
 

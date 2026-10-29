@@ -205,7 +205,7 @@ erDiagram
 | `auth:{token}` | STRING (JSON) | 10 сек | Кеш на правата на абоната (статус, изтичане, slug-ове, лимит) |
 | `stream:status:{id}` | STRING (JSON) | 30 сек | Последен статус от агента: state, activeInputId, bitrateIn, since, lastError, nodeId, at (TVR-020) |
 | `rl:auth:{ip}` | STRING | 60 сек | Rate limit за неуспешни опити |
-| канал `events` | PUB/SUB | — | Събития към SSE клиентите на UI |
+| канал `events` | PUB/SUB | — | Събития към SSE клиентите на UI (TVR-030): съобщение `<тип>\n<JSON>`, напр. `stream.status`; всяка инстанция на core ги праща на своите клиенти |
 
 ## 4. Жизнен цикъл на абонат
 

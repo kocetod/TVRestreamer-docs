@@ -195,7 +195,7 @@ POST /api/v1/inputs/probe
 | Method | Path | Description |
 |---|---|---|
 | GET | `/dashboard/summary` | Dashboard counters |
-| GET | `/events` | SSE: `stream.status`, `stream.failover`, `node.metrics`, `session.count`, `alert` |
+| GET | `/events?types=` | SSE (TVR-030): `stream.status`, `stream.failover`, `stream.event`, `node.status`, `node.metrics`; later `session.count`, `alert`. See below | Viewer+ |
 | GET/POST/PUT/DELETE | `/alert-rules`, `/notification-channels` | Alert rules and channels |
 | POST | `/notification-channels/{id}/test` | Test notification |
 | GET | `/alerts?state=FIRING` · POST `/alerts/{id}/ack` | Incidents |
@@ -205,6 +205,37 @@ POST /api/v1/inputs/probe
 | GET/POST | `/config/export` · `/config/import` | Full configuration backup |
 | GET | `/reports/{type}?from&to` | `top-streams`, `peak-viewers`, `uptime`, `subscribers` |
 | GET/POST/DELETE | `/admin-users`, `/api-keys` | Administrators and keys |
+
+**Real time — `GET /api/v1/events` (TVR-030, FR-MON-02, NFR-10 ≤ 2 s).** Server-Sent Events (`text/event-stream`). The token goes in `Authorization: Bearer …` or — for the browser's `EventSource`, which cannot send headers — in `?access_token=` (on this path only). `?types=` selects the types (comma separated; `stream.*`, `node.*`); without it everything is sent, an unknown type → 400.
+
+```text
+event: ready
+data: {"at":"2026-10-28T18:01:09Z","until":"2026-10-28T18:16:09Z","types":["node.metrics","node.status","stream.event","stream.failover","stream.status"]}
+retry: 3000
+
+event: stream.status
+data: {"streamId":"…","state":"ONLINE","previousState":"STARTING","changed":true,"activeInputId":"…","bitrateIn":2236545,"since":"…","lastError":null,"nodeId":"…","at":"…"}
+
+: ping
+
+event: bye
+data: {"reason":"token-expired"}
+```
+
+| Event | When | `data` |
+|---|---|---|
+| `ready` | right after connecting | `at`, `until` (when the stream will end), `types` |
+| `stream.status` | every report of the agent (≈ 5 s and on change) and Stop through the API | `streamId, state, previousState, changed, activeInputId, bitrateIn, since, lastError, nodeId, at`; `changed` = new state or input |
+| `stream.failover` | the agent switched the input | `streamId, type: FAILOVER, nodeId, inputId, message, data{from, to, from_index, to_index, reason}, at` |
+| `stream.event` | any other agent event (`PROCESS_EXITED` …) | like `stream.failover` |
+| `node.status` | a server went ONLINE / OFFLINE | `nodeId, name, status, lastSeenAt, at` |
+| `node.metrics` | metrics of the agent (once it sends them — TVR-035) | `nodeId, at, cpuPercent, memUsedBytes, memTotalBytes, netRxBps, netTxBps, tmpfsFreeBytes, streamsRunning, loadAvg1m` |
+| `bye` | end of the stream | `reason`: `token-expired`, `max-duration` (1 h), `slow-client` (> 1000 queued events), `shutdown` |
+
+- `: ping` every 15 s without events (so proxies keep the connection open).
+- The stream ends when the token expires: the client reconnects with a fresh token and reloads its lists through REST — events are not replayed (no `Last-Event-ID`).
+- Between core instances the events go through Redis pub/sub (channel `events`, document 04 §3), so every client sees everything. Without Redis the events reach only the clients of the same instance.
+- At most 500 open streams per instance (`tvr.live.max-clients`) → 503. nginx in front of core must not buffer (`X-Accel-Buffering: no` is sent).
 
 ## 3. Public (subscriber) endpoints — on the edge domain
 
