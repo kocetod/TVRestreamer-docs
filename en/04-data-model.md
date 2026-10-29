@@ -192,6 +192,8 @@ erDiagram
 | `stream.processing` | `{"pnr":101, "audio":{"keep_langs":["bul","eng"]}, "drop_subtitles":true, "service_name":"BTV HD"}` |
 | `stream_output.options` | HLS: `{"segment_sec":4, "list_size":6}`; UDP: `{"addr":"239.1.1.10","port":1234,"ttl":4,"iface":"eth1"}` |
 | `subscriber.token` | 32-character base62, generated with `SecureRandom`. Unique index. |
+| `subscriber.expires_at` | Last day of access (Europe/Sofia); `NULL` = never expires. Partial index for the nightly job (only `ACTIVE` with a date, BR-01). `password_hash` is optional (Argon2id) — only for Xtream-like access. |
+| `device.fingerprint` | Hash of the device ID if the player sends one, otherwise of user agent + IP. Unique per subscriber (BR-06). |
 | `session_history` | Monthly partitioning (`PARTITION BY RANGE (started_at)`), 90-day retention. |
 | `stream_event` | Monthly partitioning (UTC, `stream_event_YYYY_MM`, function `tvr_stream_event_partition`), 180-day retention: every night next month is created and whole months that ended more than 180 days ago are dropped (TVR-029). `STATUS` = state change (`data.from`/`to`); `FAILOVER` = input switch (`data.from`/`to` — input ids, `reason`). Indexes: `(stream_id, ts)` for a channel's history and `(ts DESC)` for the dashboard's latest events (V4, TVR-034). |
 | `audit_log` | Append-only, 1-year retention. |
@@ -253,4 +255,5 @@ stateDiagram-v2
 |---|---|---|
 | V1 | TVR-005 | `node`, `category`, `stream` (slug unique among non-deleted rows, soft delete), `stream_input` (priority 1–8, network URLs only — SEC-07), `stream_output` |
 | V2 | TVR-006 | `admin_user` (case-insensitive unique email, roles ADMIN/OPERATOR/SUPPORT/VIEWER), `admin_refresh_token` (SHA-256 hash only, rotation) |
+| V5 | TVR-037 | `package` (case-insensitive unique name), `package_stream` (`sort_order`, unique per package with a deferred check), `subscriber` (case-insensitive unique `username`, `token` — 32 base62 chars, statuses, `max_connections` 1–100, `limit_policy`, `allowed_ips cidr[]`, `allowed_countries` ISO 3166-1 alpha-2), `subscriber_package`, `device` (`fingerprint` unique per subscriber) |
 - Every migration must be backward compatible with at least the previous code version (zero-downtime deploy).

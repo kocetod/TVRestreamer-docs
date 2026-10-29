@@ -192,6 +192,8 @@ erDiagram
 | `stream.processing` | `{"pnr":101, "audio":{"keep_langs":["bul","eng"]}, "drop_subtitles":true, "service_name":"BTV HD"}` |
 | `stream_output.options` | HLS: `{"segment_sec":4, "list_size":6}`; UDP: `{"addr":"239.1.1.10","port":1234,"ttl":4,"iface":"eth1"}` |
 | `subscriber.token` | 32 символа base62, генерира се с `SecureRandom`. Индекс unique. |
+| `subscriber.expires_at` | Последен ден на достъп (Europe/Sofia); `NULL` = без изтичане. Частичен индекс за нощната задача (само `ACTIVE` с дата, BR-01). `password_hash` е по избор (Argon2id) — само за Xtream-подобен достъп. |
+| `device.fingerprint` | Hash на device ID, ако плейърът праща такъв, иначе на user-agent + IP. Уникален за абоната (BR-06). |
 | `session_history` | Партициониране по месец (`PARTITION BY RANGE (started_at)`), съхранение 90 дни. |
 | `stream_event` | Партициониране по месец (UTC, `stream_event_YYYY_MM`, функция `tvr_stream_event_partition`), съхранение 180 дни: всяка нощ се създава следващият месец и се трият целите месеци, изтекли преди 180 дни (TVR-029). `STATUS` = смяна на състоянието (`data.from`/`to`); `FAILOVER` = смяна на входа (`data.from`/`to` — id на входове, `reason`). Индекси: `(stream_id, ts)` за историята на канал и `(ts DESC)` за последните събития на таблото (V4, TVR-034). |
 | `audit_log` | Append-only, съхранение 1 година. |
@@ -253,4 +255,5 @@ stateDiagram-v2
 |---|---|---|
 | V1 | TVR-005 | `node`, `category`, `stream` (slug уникален сред неизтритите, меко изтриване), `stream_input` (приоритет 1–8, само мрежови URL — SEC-07), `stream_output` |
 | V2 | TVR-006 | `admin_user` (имейл уникален без значение от регистъра, роли ADMIN/OPERATOR/SUPPORT/VIEWER), `admin_refresh_token` (само SHA-256 hash, ротация) |
+| V5 | TVR-037 | `package` (име уникално без значение от регистъра), `package_stream` (подредба `sort_order`, уникална в пакета с отложена проверка), `subscriber` (`username` уникално без значение от регистъра, `token` — 32 символа base62, статуси, `max_connections` 1–100, `limit_policy`, `allowed_ips cidr[]`, `allowed_countries` ISO 3166-1 alpha-2), `subscriber_package`, `device` (уникален `fingerprint` в рамките на абоната) |
 - Всяка миграция трябва да е обратно съвместима поне с една предишна версия на кода (zero-downtime deploy).
