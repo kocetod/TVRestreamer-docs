@@ -185,7 +185,7 @@ POST /api/v1/inputs/probe
 
 | Метод | Път | Описание |
 |---|---|---|
-| GET | `/nodes` | Списък (по име): `status` (ONLINE/OFFLINE/DRAIN), `lastSeenAt`, `agentVersion`, `ffmpegVersion`, `connected` (има отворен gRPC поток); метрики — по-късно |
+| GET | `/nodes` | Списък (по име): `status` (ONLINE/OFFLINE/DRAIN), `lastSeenAt`, `agentVersion`, `ffmpegVersion`, `connected` (има отворен gRPC поток), `metrics` — последните метрики на агента (като `node.metrics`; `null`, ако не са дошли през последните 30 сек, TVR-035) |
 | POST | `/nodes/enrollment-tokens` | Ключ за регистрация на нов сървър (валиден 1 ч) |
 | GET/PUT/DELETE | `/nodes/{id}` | Детайл / редакция / премахване |
 | POST | `/nodes/{id}/actions/drain` · `undrain` | Режим поддръжка |
@@ -194,7 +194,7 @@ POST /api/v1/inputs/probe
 
 | Метод | Път | Описание |
 |---|---|---|
-| GET | `/dashboard/summary` | Таблото (TVR-034): канали по състояние, канали с проблем (до 20), сървъри, последните 10 събития за 24 ч; зрители/трафик/абонати — `null` до съответните тикети |
+| GET | `/dashboard/summary` | Таблото (TVR-034): канали по състояние, канали с проблем (до 20), сървъри, последните 10 събития за 24 ч, `egressBps` — мрежов изход на всички сървъри с пресни метрики (TVR-035); зрители/абонати — `null` до съответните тикети |
 | GET | `/events?types=` | SSE (TVR-030): `stream.status`, `stream.failover`, `stream.event`, `node.status`, `node.metrics`; по-късно `session.count`, `alert`. Вижте по-долу | Viewer+ |
 | GET/POST/PUT/DELETE | `/alert-rules`, `/notification-channels` | Правила и канали за известия |
 | POST | `/notification-channels/{id}/test` | Тестово известие |
@@ -229,7 +229,7 @@ data: {"reason":"token-expired"}
 | `stream.failover` | агентът смени входа | `streamId, type: FAILOVER, nodeId, inputId, message, data{from, to, from_index, to_index, reason}, at` |
 | `stream.event` | друго събитие на агента (`PROCESS_EXITED` …) | като `stream.failover` |
 | `node.status` | сървър стана ONLINE / OFFLINE | `nodeId, name, status, lastSeenAt, at` |
-| `node.metrics` | метрики от агента (когато ги праща — TVR-035) | `nodeId, at, cpuPercent, memUsedBytes, memTotalBytes, netRxBps, netTxBps, tmpfsFreeBytes, streamsRunning, loadAvg1m` |
+| `node.metrics` | метрики от агента на 5 сек (TVR-035); `cpuPercent` −1 = още не е измерено | `nodeId, at, cpuPercent, memUsedBytes, memTotalBytes, netRxBps, netTxBps, tmpfsFreeBytes, tmpfsTotalBytes, streamsRunning, processes, loadAvg1m, cpuCores` |
 | `bye` | край на потока | `reason`: `token-expired`, `max-duration` (1 ч), `slow-client` (> 1000 чакащи събития), `shutdown` |
 
 - `: ping` на 15 сек без събития (проксита не затварят връзката).

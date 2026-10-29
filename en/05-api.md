@@ -185,7 +185,7 @@ POST /api/v1/inputs/probe
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/nodes` | List (by name): `status` (ONLINE/OFFLINE/DRAIN), `lastSeenAt`, `agentVersion`, `ffmpegVersion`, `connected` (an open gRPC stream); metrics later |
+| GET | `/nodes` | List (by name): `status` (ONLINE/OFFLINE/DRAIN), `lastSeenAt`, `agentVersion`, `ffmpegVersion`, `connected` (an open gRPC stream), `metrics` — the last metrics of the agent (as in `node.metrics`; `null` when none came in the last 30 s, TVR-035) |
 | POST | `/nodes/enrollment-tokens` | Key to enroll a new server (valid 1 h) |
 | GET/PUT/DELETE | `/nodes/{id}` | Detail / update / remove |
 | POST | `/nodes/{id}/actions/drain` · `undrain` | Maintenance mode |
@@ -194,7 +194,7 @@ POST /api/v1/inputs/probe
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/dashboard/summary` | Dashboard (TVR-034): channels per state, problem channels (up to 20), servers, the 10 newest events of 24 h; viewers/traffic/subscribers — `null` until their tickets |
+| GET | `/dashboard/summary` | Dashboard (TVR-034): channels per state, problem channels (up to 20), servers, the 10 newest events of 24 h, `egressBps` — network out of all servers with fresh metrics (TVR-035); viewers/subscribers — `null` until their tickets |
 | GET | `/events?types=` | SSE (TVR-030): `stream.status`, `stream.failover`, `stream.event`, `node.status`, `node.metrics`; later `session.count`, `alert`. See below | Viewer+ |
 | GET/POST/PUT/DELETE | `/alert-rules`, `/notification-channels` | Alert rules and channels |
 | POST | `/notification-channels/{id}/test` | Test notification |
@@ -229,7 +229,7 @@ data: {"reason":"token-expired"}
 | `stream.failover` | the agent switched the input | `streamId, type: FAILOVER, nodeId, inputId, message, data{from, to, from_index, to_index, reason}, at` |
 | `stream.event` | any other agent event (`PROCESS_EXITED` …) | like `stream.failover` |
 | `node.status` | a server went ONLINE / OFFLINE | `nodeId, name, status, lastSeenAt, at` |
-| `node.metrics` | metrics of the agent (once it sends them — TVR-035) | `nodeId, at, cpuPercent, memUsedBytes, memTotalBytes, netRxBps, netTxBps, tmpfsFreeBytes, streamsRunning, loadAvg1m` |
+| `node.metrics` | metrics of the agent every 5 s (TVR-035); `cpuPercent` −1 = not measured yet | `nodeId, at, cpuPercent, memUsedBytes, memTotalBytes, netRxBps, netTxBps, tmpfsFreeBytes, tmpfsTotalBytes, streamsRunning, processes, loadAvg1m, cpuCores` |
 | `bye` | end of the stream | `reason`: `token-expired`, `max-duration` (1 h), `slow-client` (> 1000 queued events), `shutdown` |
 
 - `: ping` every 15 s without events (so proxies keep the connection open).

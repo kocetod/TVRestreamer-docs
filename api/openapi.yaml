@@ -555,7 +555,8 @@ paths:
       tags: [nodes]
       description: |
         Servers by name (any admin role). status becomes ONLINE on the agent's Hello and OFFLINE 15 s after
-        the last heartbeat (FR-NOD-02); connected = the agent has an open gRPC stream right now (TVR-017).
+        the last heartbeat (FR-NOD-02); connected = the agent has an open gRPC stream right now (TVR-017);
+        metrics = the agent's last NodeMetrics, kept 30 s in Redis (TVR-035).
       responses:
         '200':
           description: Nodes
@@ -745,18 +746,21 @@ components:
         at: {type: string, format: date-time}
     LiveNodeMetrics:
       type: object
-      description: "data of `node.metrics` (TVR-030; the agent sends them from TVR-035)"
+      description: "data of `node.metrics` (TVR-030); the agent sends them every 5 s (TVR-035). Also `Node.metrics`."
       properties:
         nodeId: {type: string, format: uuid}
         at: {type: string, format: date-time}
-        cpuPercent: {type: number}
+        cpuPercent: {type: number, description: '0–100 for the whole machine; -1 = not measured yet'}
         memUsedBytes: {type: integer, format: int64}
         memTotalBytes: {type: integer, format: int64}
-        netRxBps: {type: integer, format: int64}
+        netRxBps: {type: integer, format: int64, description: 'All interfaces but loopback, bit/s'}
         netTxBps: {type: integer, format: int64}
-        tmpfsFreeBytes: {type: integer, format: int64}
+        tmpfsFreeBytes: {type: integer, format: int64, description: "Free space of the agent's work directory (0 = unknown)"}
+        tmpfsTotalBytes: {type: integer, format: int64}
         streamsRunning: {type: integer}
+        processes: {type: integer, description: 'FFmpeg (child) processes of the agent'}
         loadAvg1m: {type: number}
+        cpuCores: {type: integer}
     StreamEvent:
       type: object
       properties:
@@ -1058,19 +1062,14 @@ components:
         agentVersion: {type: string}
         ffmpegVersion: {type: string}
         metrics:
-          type: object
-          properties:
-            cpu: {type: number}
-            ramUsed: {type: integer}
-            ramTotal: {type: integer}
-            netInBps: {type: integer}
-            netOutBps: {type: integer}
-            streams: {type: integer}
+          nullable: true
+          description: 'Last metrics of the agent (TVR-035); null when none came in the last 30 s'
+          allOf: [{$ref: '#/components/schemas/LiveNodeMetrics'}]
         lastSeenAt: {type: string, format: date-time}
         connected: {type: boolean, description: 'Open gRPC stream from the agent right now'}
     DashboardSummary:
       type: object
-      description: "TVR-034. viewersNow, egressBps and activeSubscribers stay null until sessions (TVR-066), node metrics (TVR-035) and subscribers (TVR-040)."
+      description: "TVR-034. viewersNow and activeSubscribers stay null until sessions (TVR-066) and subscribers (TVR-040); egressBps = network out of all servers with fresh metrics, null when none (TVR-035)."
       properties:
         at: {type: string, format: date-time}
         streams:
