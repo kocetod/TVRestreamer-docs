@@ -152,11 +152,13 @@ POST /api/v1/inputs/probe
 | GET/POST | `/categories` | List (by `sortOrder`, then name) / create `{name, sortOrder?}` — without `sortOrder` it goes last |
 | GET/PUT/DELETE | `/categories/{id}` | Detail / update / delete (channels stay, without a category) |
 | PUT | `/categories/order` | `[id, id, …]` — full order of all categories; returns the new list |
-| GET/POST | `/packages` | List / create |
-| GET/PUT/DELETE | `/packages/{id}` | Detail / update / delete |
-| PUT | `/packages/{id}/streams` | `[{streamId, sortOrder}]` — full ordering |
+| GET/POST | `/packages` | List (by name) / create `{name, description?, active?}` |
+| GET/PUT/DELETE | `/packages/{id}` | Detail / update / delete (`?force=true` when subscribers have the package) |
+| GET/PUT | `/packages/{id}/streams` | The package's channels in order / new full list `[{streamId, sortOrder?}]` — add, remove and reorder at once; returns the new list |
 
 > Categories (TVR-013): read — any role, change — ADMIN/OPERATOR. The name is unique ignoring case (409 with `errors[].field = name`), up to 100 characters; `sortOrder` 0–100000. The response carries `streamCount` (channels not deleted). With `PUT /categories/order` every category must appear exactly once — otherwise 400.
+
+> Packages (TVR-038): read — any role, change — ADMIN/OPERATOR. The name is unique ignoring case (409, `errors[].field = name`), up to 100 characters; description up to 1000; `active=false` — the package grants no access (TVR-041/042). The response carries `streamCount` (channels not deleted) and `subscriberCount`. `PUT /packages/{id}/streams`: each channel at most once, only channels that are not deleted (otherwise 400 with `errors[i].streamId`); the order follows `sortOrder`, without it the array position; stored as 0, 1, 2…; up to 2000 channels. A soft-deleted channel is hidden, but its link is kept for a restore. `DELETE` of a package that subscribers have, without `force=true` → 409 with `code = PACKAGE_HAS_SUBSCRIBERS` and `subscriberCount`; deleting removes only the links — the channels stay. Playlists are built per request (TVR-041), so a change applies at once (FR-PKG-02). The list `/streams?packageId=` returns the channels of a package.
 
 ### 2.4 Subscribers
 

@@ -91,7 +91,7 @@ paths:
         - {name: nodeId, in: query, schema: {type: string, format: uuid}}
         - {name: enabled, in: query, schema: {type: boolean}}
         - {name: mode, in: query, schema: {type: string, enum: [ALWAYS_ON, ON_DEMAND]}}
-        - {name: packageId, in: query, description: 'Not supported until packages (S3) — returns 400', schema: {type: string, format: uuid}}
+        - {name: packageId, in: query, description: 'Channels of this package (TVR-038); an unknown id gives an empty list', schema: {type: string, format: uuid}}
         - {name: q, in: query, description: 'Part of the name or slug (case-insensitive), or an exact LCN', schema: {type: string}}
         - $ref: '#/components/parameters/page'
         - $ref: '#/components/parameters/size'
@@ -432,6 +432,7 @@ paths:
   /packages:
     get:
       tags: [packages]
+      description: All packages by name (any admin role; TVR-038).
       responses:
         '200':
           description: Packages
@@ -442,28 +443,106 @@ paths:
                 items: {$ref: '#/components/schemas/Package'}
     post:
       tags: [packages]
+      description: Create a package (ADMIN/OPERATOR). 409 when the name is taken (ignoring case).
       requestBody:
+        required: true
         content:
           application/json:
-            schema: {$ref: '#/components/schemas/Package'}
+            schema: {$ref: '#/components/schemas/PackageInput'}
       responses:
-        '201': {description: Created}
-  /packages/{id}/streams:
+        '201':
+          description: Created; `Location` points to the package
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Package'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+  /packages/{id}:
     parameters: [{$ref: '#/components/parameters/id'}]
+    get:
+      tags: [packages]
+      responses:
+        '200':
+          description: Package
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Package'}
+        '404': {$ref: '#/components/responses/Problem'}
     put:
       tags: [packages]
+      description: Update name and description; `active` is kept when omitted. 409 when the name is taken.
       requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PackageInput'}
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Package'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+    delete:
+      tags: [packages]
+      description: |
+        Delete the package with its channel and subscriber links; the channels stay. A package that subscribers
+        have is deleted only with `force=true`, otherwise 409 with `code = PACKAGE_HAS_SUBSCRIBERS` and
+        `subscriberCount`.
+      parameters:
+        - {name: force, in: query, schema: {type: boolean, default: false}}
+      responses:
+        '204': {description: Deleted}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+  /packages/{id}/streams:
+    parameters: [{$ref: '#/components/parameters/id'}]
+    get:
+      tags: [packages]
+      description: Channels (not deleted) of the package in package order.
+      responses:
+        '200':
+          description: Channels in order
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/PackageStream'}
+        '404': {$ref: '#/components/responses/Problem'}
+    put:
+      tags: [packages]
+      description: |
+        Replace the channels of the package (add, remove and reorder at once; ADMIN/OPERATOR). The order follows
+        `sortOrder`; an item without it takes its array index; stored as 0, 1, 2… Every `streamId` at most once and
+        of a channel that is not deleted (400 with `errors[i].streamId`); up to 2000 items. Soft-deleted channels
+        already in the package keep their link. Returns the stored list.
+      requestBody:
+        required: true
         content:
           application/json:
             schema:
               type: array
+              maxItems: 2000
               items:
                 type: object
+                required: [streamId]
                 properties:
                   streamId: {type: string, format: uuid}
-                  sortOrder: {type: integer}
+                  sortOrder: {type: integer, minimum: 0, maximum: 100000}
       responses:
-        '204': {description: Saved}
+        '200':
+          description: The channels in the stored order
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/PackageStream'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
 
   /subscribers:
     get:
@@ -866,7 +945,7 @@ components:
           items: {$ref: '#/components/schemas/OutputDef'}
         packageIds:
           type: array
-          description: Accepted but ignored until packages (S3)
+          description: Accepted but ignored; channels are put into packages with PUT /packages/{id}/streams (TVR-038)
           items: {type: string, format: uuid}
     Stream:
       allOf:
@@ -1034,14 +1113,33 @@ components:
         scrambled: {type: boolean}
     Package:
       type: object
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string, maxLength: 100}
+        description: {type: string, nullable: true, maxLength: 1000}
+        active: {type: boolean, description: an inactive package grants no access}
+        streamCount: {type: integer, format: int64, description: channels (not deleted) in the package}
+        subscriberCount: {type: integer, format: int64}
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
+    PackageInput:
+      type: object
       required: [name]
       properties:
-        id: {type: string, format: uuid, readOnly: true}
+        name: {type: string, maxLength: 100, description: unique ignoring case}
+        description: {type: string, nullable: true, maxLength: 1000}
+        active: {type: boolean, description: 'default true on create; kept when omitted on update'}
+    PackageStream:
+      type: object
+      properties:
+        streamId: {type: string, format: uuid}
+        sortOrder: {type: integer, description: '0, 1, 2 … in package order'}
         name: {type: string}
-        description: {type: string}
-        active: {type: boolean}
-        streamCount: {type: integer, readOnly: true}
-        subscriberCount: {type: integer, readOnly: true}
+        slug: {type: string}
+        lcn: {type: integer, nullable: true}
+        logoUrl: {type: string, nullable: true}
+        enabled: {type: boolean}
+        categoryId: {type: string, format: uuid, nullable: true}
     SubscriberStatus:
       type: string
       enum: [ACTIVE, SUSPENDED, EXPIRED, BANNED]
