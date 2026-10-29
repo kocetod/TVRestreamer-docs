@@ -39,7 +39,7 @@
 | PUT | `/streams/{id}` | Пълна редакция (`version` задължително) | Operator+ |
 | DELETE | `/streams/{id}` | Меко изтриване | Operator+ |
 | POST | `/streams/{id}/actions/start` · `stop` · `restart` | Управление (TVR-021): `start`/`stop` сменят `enabled` (остава след рестарт), `restart` рестартира процесите на агента. 202 + каналът; 409 — `restart` на спрян канал, без сървър или с несвързан сървър; 404 — непознато действие | Operator+ |
-| POST | `/streams/{id}/actions/switch-input` | `{inputId, pin: bool}` | Operator+ |
+| POST | `/streams/{id}/actions/switch-input` | `{inputId, pin: bool}` — pin спира автоматиката; активният вход с pin=false = откачане; статусът: `status.inputPinned` (TVR-036) | Operator+ |
 | POST | `/streams/{id}/clone` | Клониране | Operator+ |
 | GET | `/streams/{id}/analyzer` | Битрейт, PID-ове с кодеци и езици, CC грешки (на живо, на 5 сек; TVR-026) | Viewer+ |
 | GET | `/streams/{id}/metrics?from&to&step` | Времеви редове (битрейт, CC, зрители) | Viewer+ |

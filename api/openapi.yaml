@@ -230,17 +230,42 @@ paths:
     parameters: [{$ref: '#/components/parameters/id'}]
     post:
       tags: [streams]
+      summary: Manual input switch, with or without pin (FR-FOV-06, TVR-036)
+      description: |
+        Sends `SwitchInput` to the agent of the channel's node: the input becomes active now (FAILOVER event with
+        `data.manual = true`, `data.pinned`). `pin = true` suspends the automatic failover — the pinned input stays
+        active even without data — until a switch with `pin = false`; the active input with `pin = false` only
+        clears the pin. The pin is not stored: a restart of the channel (or of the agent, or a change of its
+        settings) clears it. `status.inputPinned` shows it. ADMIN or OPERATOR.
       requestBody:
+        required: true
         content:
           application/json:
             schema:
               type: object
               required: [inputId]
               properties:
-                inputId: {type: string, format: uuid}
+                inputId: {type: string, format: uuid, description: an enabled input of this channel}
                 pin: {type: boolean, default: false}
       responses:
-        '202': {description: Accepted}
+        '202':
+          description: Accepted; the channel as it is now (the agent switches within 1–3 s)
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Stream'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404':
+          description: no such channel, or the channel has no such input
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
+        '409':
+          description: the input is disabled, the channel is stopped, has no node, or its node is not connected
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
   /streams/{id}/analyzer:
     parameters: [{$ref: '#/components/parameters/id'}]
     get:
@@ -717,8 +742,9 @@ components:
         streamId: {type: string, format: uuid}
         state: {$ref: '#/components/schemas/StreamState'}
         previousState: {$ref: '#/components/schemas/StreamState'}
-        changed: {type: boolean, description: new state or new active input with this report}
+        changed: {type: boolean, description: 'new state, new active input or a new pin with this report'}
         activeInputId: {type: string, format: uuid, nullable: true}
+        inputPinned: {type: boolean, description: 'the active input is pinned by an operator (TVR-036)'}
         bitrateIn: {type: integer, format: int64}
         since: {type: string, format: date-time}
         lastError: {type: string, nullable: true}
@@ -862,6 +888,11 @@ components:
                 bitrateIn: {type: integer, format: int64, nullable: true, description: 'bits/s of the input (0 while STARTING)'}
                 since: {type: string, format: date-time, nullable: true, description: when the channel entered this state}
                 lastError: {type: string, nullable: true, description: 'why the channel is OFFLINE, ERROR or DEGRADED'}
+                inputPinned:
+                  type: boolean
+                  description: >-
+                    An operator pinned the active input (TVR-036, FR-FOV-06): automatic failover is suspended until
+                    a switch with pin=false. A pinned backup input is ONLINE, not DEGRADED.
                 viewers: {type: integer, description: Not reported yet (sessions, S5)}
             urls:
               type: object

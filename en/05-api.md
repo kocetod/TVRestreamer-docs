@@ -39,7 +39,7 @@
 | PUT | `/streams/{id}` | Full update (`version` required) | Operator+ |
 | DELETE | `/streams/{id}` | Soft delete | Operator+ |
 | POST | `/streams/{id}/actions/start` · `stop` · `restart` | Control (TVR-021): `start`/`stop` set `enabled` (kept across restarts), `restart` restarts the processes on the agent. 202 + the channel; 409 — `restart` of a stopped channel, without a node or with a disconnected node; 404 — unknown action | Operator+ |
-| POST | `/streams/{id}/actions/switch-input` | `{inputId, pin: bool}` | Operator+ |
+| POST | `/streams/{id}/actions/switch-input` | `{inputId, pin: bool}` — pin suspends the automation; the active input with pin=false = unpin; the status shows `status.inputPinned` (TVR-036) | Operator+ |
 | POST | `/streams/{id}/clone` | Clone | Operator+ |
 | GET | `/streams/{id}/analyzer` | Bitrate, PIDs with codecs and languages, CC errors (live, every 5 s; TVR-026) | Viewer+ |
 | GET | `/streams/{id}/metrics?from&to&step` | Time series (bitrate, CC, viewers) | Viewer+ |
