@@ -194,7 +194,7 @@ POST /api/v1/inputs/probe
 
 | Метод | Път | Описание |
 |---|---|---|
-| GET | `/dashboard/summary` | Броячи за таблото |
+| GET | `/dashboard/summary` | Таблото (TVR-034): канали по състояние, канали с проблем (до 20), сървъри, последните 10 събития за 24 ч; зрители/трафик/абонати — `null` до съответните тикети |
 | GET | `/events?types=` | SSE (TVR-030): `stream.status`, `stream.failover`, `stream.event`, `node.status`, `node.metrics`; по-късно `session.count`, `alert`. Вижте по-долу | Viewer+ |
 | GET/POST/PUT/DELETE | `/alert-rules`, `/notification-channels` | Правила и канали за известия |
 | POST | `/notification-channels/{id}/test` | Тестово известие |

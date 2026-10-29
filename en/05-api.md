@@ -194,7 +194,7 @@ POST /api/v1/inputs/probe
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/dashboard/summary` | Dashboard counters |
+| GET | `/dashboard/summary` | Dashboard (TVR-034): channels per state, problem channels (up to 20), servers, the 10 newest events of 24 h; viewers/traffic/subscribers — `null` until their tickets |
 | GET | `/events?types=` | SSE (TVR-030): `stream.status`, `stream.failover`, `stream.event`, `node.status`, `node.metrics`; later `session.count`, `alert`. See below | Viewer+ |
 | GET/POST/PUT/DELETE | `/alert-rules`, `/notification-channels` | Alert rules and channels |
 | POST | `/notification-channels/{id}/test` | Test notification |
