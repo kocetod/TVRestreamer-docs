@@ -547,6 +547,10 @@ paths:
   /subscribers:
     get:
       tags: [subscribers]
+      description: |
+        Page of subscribers (ADMIN/OPERATOR/SUPPORT; TVR-039). `q` — part of username, full name, phone or e-mail
+        (case-insensitive), or a full token. `expiresBefore` — expiry on or before that day (inclusive).
+        Sortable by username (default), fullName, status, expiresAt, createdAt, updatedAt; no date sorts last.
       parameters:
         - {name: status, in: query, schema: {$ref: '#/components/schemas/SubscriberStatus'}}
         - {name: packageId, in: query, schema: {type: string, format: uuid}}
@@ -554,6 +558,7 @@ paths:
         - {name: q, in: query, schema: {type: string}}
         - $ref: '#/components/parameters/page'
         - $ref: '#/components/parameters/size'
+        - $ref: '#/components/parameters/sort'
       responses:
         '200':
           description: Page of subscribers
@@ -567,18 +572,24 @@ paths:
                       items:
                         type: array
                         items: {$ref: '#/components/schemas/Subscriber'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
     post:
       tags: [subscribers]
+      description: Create; the status is ACTIVE and a 32-character token is generated. 409 when the username is taken.
       requestBody:
+        required: true
         content:
           application/json:
-            schema: {$ref: '#/components/schemas/Subscriber'}
+            schema: {$ref: '#/components/schemas/SubscriberInput'}
       responses:
         '201':
-          description: Created
+          description: Created; `Location` points to the subscriber
           content:
             application/json:
               schema: {$ref: '#/components/schemas/Subscriber'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
   /subscribers/{id}:
     parameters: [{$ref: '#/components/parameters/id'}]
     get:
@@ -589,47 +600,79 @@ paths:
           content:
             application/json:
               schema: {$ref: '#/components/schemas/Subscriber'}
+        '404': {$ref: '#/components/responses/Problem'}
     put:
       tags: [subscribers]
+      description: |
+        Full update. Text fields are the new state (null clears them); password, packageIds, maxConnections,
+        limitPolicy, allowedIps and allowedCountries are kept when null; an empty password removes it. An expiry
+        date may stay in the past only when unchanged. An EXPIRED subscriber with a new date from today on (or none)
+        becomes ACTIVE.
       requestBody:
+        required: true
         content:
           application/json:
-            schema: {$ref: '#/components/schemas/Subscriber'}
+            schema: {$ref: '#/components/schemas/SubscriberInput'}
       responses:
-        '200': {description: Updated}
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Subscriber'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
     delete:
       tags: [subscribers]
+      description: Hard delete with packages links and devices (ADMIN only).
       responses:
         '204': {description: Deleted}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
   /subscribers/{id}/actions/extend:
     parameters: [{$ref: '#/components/parameters/id'}]
     post:
       tags: [subscribers]
+      description: |
+        Exactly one of `days` (1–3650, added to the current expiry, or to today when it has passed or is not set)
+        and `until` (the new last day, not in the past). An EXPIRED subscriber becomes ACTIVE.
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              oneOf:
-                - type: object
-                  properties: {days: {type: integer, minimum: 1}}
-                - type: object
-                  properties: {until: {type: string, format: date}}
-      responses:
-        '200': {description: Extended}
-  /subscribers/{id}/actions/regenerate-token:
-    parameters: [{$ref: '#/components/parameters/id'}]
-    post:
-      tags: [subscribers]
+              type: object
+              properties:
+                days: {type: integer, minimum: 1, maximum: 3650}
+                until: {type: string, format: date}
       responses:
         '200':
-          description: New token
+          description: The subscriber with the new date
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  token: {type: string}
-                  playlistUrl: {type: string, format: uri}
+              schema: {$ref: '#/components/schemas/Subscriber'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+  /subscribers/{id}/actions/{action}:
+    parameters:
+      - {$ref: '#/components/parameters/id'}
+      - {name: action, in: path, required: true, schema: {type: string, enum: [suspend, resume, ban, regenerate-token]}}
+    post:
+      tags: [subscribers]
+      description: |
+        `suspend`: ACTIVE → SUSPENDED (409 for EXPIRED/BANNED). `resume`: SUSPENDED → ACTIVE (EXPIRED if the date has
+        passed); BANNED → ACTIVE only for ADMIN (403 otherwise); 409 for EXPIRED — use extend. `ban`: any → BANNED.
+        `regenerate-token`: a new token, the old one stops working at once (FR-SUB-05). Repeating an action on the
+        status it leads to changes nothing. Every action drops the cached access `auth:<token>` in Redis.
+      responses:
+        '200':
+          description: The subscriber as it is now (with `token` and `playlistUrl`)
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Subscriber'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
 
   /sessions:
     get:
@@ -1143,27 +1186,51 @@ components:
     SubscriberStatus:
       type: string
       enum: [ACTIVE, SUSPENDED, EXPIRED, BANNED]
-    Subscriber:
+    SubscriberInput:
       type: object
       required: [username]
       properties:
-        id: {type: string, format: uuid, readOnly: true}
-        username: {type: string}
-        password: {type: string, writeOnly: true}
-        fullName: {type: string}
-        phone: {type: string}
-        email: {type: string, format: email}
-        status: {$ref: '#/components/schemas/SubscriberStatus'}
-        expiresAt: {type: string, format: date}
-        maxConnections: {type: integer, default: 1, minimum: 1, maximum: 10}
+        username: {type: string, pattern: '^[A-Za-z0-9._@-]{3,64}$', description: unique ignoring case}
+        password: {type: string, writeOnly: true, minLength: 6, maxLength: 128, description: 'Xtream-like access; "" removes it'}
+        fullName: {type: string, maxLength: 150, nullable: true}
+        phone: {type: string, pattern: '^[0-9+()\- ]{3,32}$', nullable: true}
+        email: {type: string, format: email, maxLength: 254, nullable: true}
+        expiresAt: {type: string, format: date, nullable: true, description: 'last day of access (Europe/Sofia); null = never expires'}
+        maxConnections: {type: integer, default: 1, minimum: 1, maximum: 100}
         limitPolicy: {type: string, enum: [REJECT_NEW, KICK_OLDEST], default: REJECT_NEW}
         packageIds: {type: array, items: {type: string, format: uuid}}
-        allowedIps: {type: array, items: {type: string, example: '10.0.0.0/24'}}
-        allowedCountries: {type: array, items: {type: string, example: BG}}
-        note: {type: string}
-        token: {type: string, readOnly: true}
-        playlistUrl: {type: string, format: uri, readOnly: true}
-        activeSessions: {type: integer, readOnly: true}
+        allowedIps: {type: array, maxItems: 50, items: {type: string, example: '10.0.0.0/24'}, description: 'stored in CIDR form; a network must not have host bits'}
+        allowedCountries: {type: array, maxItems: 50, items: {type: string, example: BG}}
+        note: {type: string, maxLength: 2000, nullable: true}
+    Subscriber:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        username: {type: string}
+        fullName: {type: string, nullable: true}
+        phone: {type: string, nullable: true}
+        email: {type: string, nullable: true}
+        status: {$ref: '#/components/schemas/SubscriberStatus'}
+        expiresAt: {type: string, format: date, nullable: true}
+        daysLeft: {type: integer, format: int64, nullable: true, description: 'days until expiresAt (0 = last day, negative = passed)'}
+        maxConnections: {type: integer}
+        limitPolicy: {type: string, enum: [REJECT_NEW, KICK_OLDEST]}
+        packageIds: {type: array, items: {type: string, format: uuid}}
+        packages:
+          type: array
+          items:
+            type: object
+            properties:
+              id: {type: string, format: uuid}
+              name: {type: string}
+        allowedIps: {type: array, items: {type: string}}
+        allowedCountries: {type: array, items: {type: string}}
+        note: {type: string, nullable: true}
+        hasPassword: {type: boolean}
+        token: {type: string, description: 32 base62 characters}
+        playlistUrl: {type: string, format: uri, example: 'https://tv.example.com/pl/<token>.m3u'}
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
     Session:
       type: object
       properties:

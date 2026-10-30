@@ -175,6 +175,8 @@ POST /api/v1/inputs/probe
 | GET | `/subscribers/{id}/sessions` | Активни сесии и история | Support+ |
 | POST | `/subscribers/import` (CSV) · GET `/subscribers/export` | Масови операции | Admin |
 
+> Абонати (TVR-039): `POST`/`PUT` с `{username, password?, fullName?, phone?, email?, expiresAt?, maxConnections?, limitPolicy?, packageIds?, allowedIps?, allowedCountries?, note?}`; статусът се сменя само с действията. `username` — `[A-Za-z0-9._@-]{3,64}`, уникално без значение от регистъра (409); паролата се пази като Argon2id и не се връща (`hasPassword`); `""` я маха. Отговорът носи `token` (32 base62 символа), `playlistUrl` (`{TVR_PLAYBACK_BASE_URL}/pl/{token}.m3u`), `daysLeft`, `packages`. `expiresAt` е последният ден с достъп (Europe/Sofia), `null` — без край; не може да е в миналото (освен непроменена при редакция). `extend`: точно едно от `days` (1–3650, от текущата дата или от днес, ако е минала/няма) и `until`; изтекъл абонат става ACTIVE. `suspend`: ACTIVE → SUSPENDED; `resume`: SUSPENDED → ACTIVE, BANNED → ACTIVE само Admin, EXPIRED → 409 (ползвайте extend); `ban`: всеки → BANNED; `regenerate-token`: нов токен, старият спира веднага. Всяка промяна трие кеша `auth:<token>` в Redis. Списъкът: `q` (име, телефон, имейл, потребител или точен токен), `status`, `packageId`, `expiresBefore` (включително), `sort`. Роли: Support+; DELETE — Admin; Viewer няма достъп. Автоматичното изтичане (TVR-046), лимитът на устройствата (TVR-045) и кикването на сесии (TVR-066) идват с техните тикети.
+
 ### 2.5 Сесии
 
 | Метод | Път | Описание |

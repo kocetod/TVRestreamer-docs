@@ -175,6 +175,8 @@ POST /api/v1/inputs/probe
 | GET | `/subscribers/{id}/sessions` | Active sessions and history | Support+ |
 | POST | `/subscribers/import` (CSV) · GET `/subscribers/export` | Bulk operations | Admin |
 
+> Subscribers (TVR-039): `POST`/`PUT` with `{username, password?, fullName?, phone?, email?, expiresAt?, maxConnections?, limitPolicy?, packageIds?, allowedIps?, allowedCountries?, note?}`; the status changes only through the actions. `username` — `[A-Za-z0-9._@-]{3,64}`, unique ignoring case (409); the password is stored as Argon2id and never returned (`hasPassword`); `""` removes it. The response carries `token` (32 base62 characters), `playlistUrl` (`{TVR_PLAYBACK_BASE_URL}/pl/{token}.m3u`), `daysLeft`, `packages`. `expiresAt` is the last day of access (Europe/Sofia), `null` — no end; it cannot be in the past (unless unchanged on update). `extend`: exactly one of `days` (1–3650, from the current date or from today when it has passed / is not set) and `until`; an expired subscriber becomes ACTIVE. `suspend`: ACTIVE → SUSPENDED; `resume`: SUSPENDED → ACTIVE, BANNED → ACTIVE for Admin only, EXPIRED → 409 (use extend); `ban`: any → BANNED; `regenerate-token`: a new token, the old one stops at once. Every change drops the cache `auth:<token>` in Redis. The list: `q` (name, phone, e-mail, username or an exact token), `status`, `packageId`, `expiresBefore` (inclusive), `sort`. Roles: Support+; DELETE — Admin; Viewer has no access. Automatic expiry (TVR-046), the device limit (TVR-045) and kicking sessions (TVR-066) come with their tickets.
+
 ### 2.5 Sessions
 
 | Method | Path | Description |
