@@ -255,6 +255,8 @@ data: {"reason":"token-expired"}
 | GET | `/player_api.php?username&password&action=` | Xtream compatibility (R1) |
 | GET | `/live/{username}/{password}/{streamId}.{ts\|m3u8}` | Xtream compatibility (R1) |
 
+> Playlist (TVR-041): public, the token in the path is the key. Built on every request: the channels of the subscriber's **active** packages, each once, not deleted, enabled or on demand, with a public enabled output of the chosen type (`type=hls` by default, `type=ts` — only channels with HTTP-TS); ordered by LCN, channels without a number after them by name. `#EXTINF:-1 tvg-id="{epgId|slug}" tvg-name tvg-logo group-title="{category}" tvg-chno="{lcn}",{name}` and `{base}/live/{slug}/index.m3u8?token={token}`. Only an ACTIVE subscriber whose last day has not passed gets a playlist; otherwise 403, an unknown token — 404 (short text, not problem+json). A browser (Accept: text/html) gets `text/plain`, players `audio/x-mpegurl`; `Cache-Control: no-store`. In dev the nginx origin on :8081 passes `/pl/` to tvr-core. Checking `?token=` when a channel plays comes with TVR-042/043.
+
 ## 4. Internal endpoints
 
 | Method | Path | Called by | Description |

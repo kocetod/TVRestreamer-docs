@@ -255,6 +255,8 @@ data: {"reason":"token-expired"}
 | GET | `/player_api.php?username&password&action=` | Xtream съвместимост (R1) |
 | GET | `/live/{username}/{password}/{streamId}.{ts\|m3u8}` | Xtream съвместимост (R1) |
 
+> Плейлист (TVR-041): публичен, токенът в пътя е ключът. Строи се при всяка заявка: каналите от **активните** пакети на абоната, всеки по веднъж, неизтрити, включени или „при поискване“, с публичен включен изход от избрания тип (`type=hls` по подразбиране, `type=ts` — само каналите с HTTP-TS); ред по LCN, без номер — след тях по име. `#EXTINF:-1 tvg-id="{epgId|slug}" tvg-name tvg-logo group-title="{категория}" tvg-chno="{lcn}",{име}` и `{база}/live/{slug}/index.m3u8?token={token}`. Плейлист получава само ACTIVE абонат, чийто последен ден не е минал; иначе 403, непознат токен — 404 (кратък текст, не problem+json). Браузър (Accept: text/html) получава `text/plain`, плейърите — `audio/x-mpegurl`; `Cache-Control: no-store`. В dev nginx origin на :8081 препраща `/pl/` към tvr-core. Проверката на `?token=` при самото пускане идва с TVR-042/043.
+
 ## 4. Вътрешни endpoints
 
 | Метод | Път | Извиква | Описание |

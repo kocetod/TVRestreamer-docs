@@ -20,6 +20,8 @@ tags:
   - name: nodes
   - name: monitoring
   - name: settings
+  - name: playlists
+    description: Subscriber endpoints on the edge domain (document 05 §3), outside /api/v1
 paths:
   /auth/login:
     post:
@@ -701,6 +703,41 @@ paths:
                         items: {$ref: '#/components/schemas/AuditEntry'}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
+
+  /pl/{token}.m3u:
+    servers:
+      - url: https://tv.example.com
+        description: the edge domain (TVR_PLAYBACK_BASE_URL); in dev the nginx origin http://localhost:8081
+    get:
+      tags: [playlists]
+      security: []
+      summary: Personal M3U playlist (FR-PLY-01/02/05, TVR-041)
+      description: |
+        Public — the token in the path is the credential. Built on every request: the channels of the subscriber's
+        active packages, each once, not deleted, enabled or on demand, with a public enabled output of the chosen
+        type; ordered by LCN, channels without a number after them by name. Each entry is
+        `#EXTINF:-1 tvg-id="{epgId|slug}" tvg-name tvg-logo group-title="{category}" tvg-chno="{lcn}",{name}`
+        followed by `{base}/live/{slug}/index.m3u8?token={token}` (HLS) or `{base}/ts/{slug}.ts?token={token}`
+        (`type=ts`). Only ACTIVE subscribers whose last day has not passed get a playlist. Plain-text errors (no
+        problem+json): players show them as they are. `Cache-Control: no-store`.
+      parameters:
+        - {name: token, in: path, required: true, schema: {type: string, pattern: '^[A-Za-z0-9]{32}$'}}
+        - {name: type, in: query, schema: {type: string, enum: [hls, ts], default: hls}}
+      responses:
+        '200':
+          description: The playlist; `text/plain` when the request accepts text/html (a browser)
+          content:
+            audio/x-mpegurl:
+              schema: {type: string}
+              example: |
+                #EXTM3U
+                #EXTINF:-1 tvg-id="btv-hd" tvg-name="bTV HD" tvg-logo="https://tv.example.com/logos/btv.png" group-title="Общи" tvg-chno="3",bTV HD
+                https://tv.example.com/live/btv-hd/index.m3u8?token=a8Kf3xQ9mZ2LwP7sR4tY1uV6bN0cD5eH
+            text/plain:
+              schema: {type: string}
+        '400': {description: '`type` is not hls or ts', content: {text/plain: {schema: {type: string}}}}
+        '403': {description: Suspended, banned or expired, content: {text/plain: {schema: {type: string}}}}
+        '404': {description: No subscriber with this token (also the old token after regenerate-token), content: {text/plain: {schema: {type: string}}}}
 
   /sessions:
     get:
