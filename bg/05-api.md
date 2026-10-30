@@ -171,6 +171,7 @@ POST /api/v1/inputs/probe
 | POST | `/subscribers/{id}/actions/extend` | `{days}` или `{until}` | Support+ |
 | POST | `/subscribers/{id}/actions/suspend` · `resume` · `ban` | Статус | Support+ |
 | POST | `/subscribers/{id}/actions/regenerate-token` | Нов токен, кик на сесиите | Support+ |
+| GET | `/subscribers/{id}/history` | История от одит лога: кой, какво, кога (TVR-040) | Support+ |
 | GET | `/subscribers/{id}/devices` · DELETE `/devices/{deviceId}` | Устройства | Support+ |
 | GET | `/subscribers/{id}/sessions` | Активни сесии и история | Support+ |
 | POST | `/subscribers/import` (CSV) · GET `/subscribers/export` | Масови операции | Admin |

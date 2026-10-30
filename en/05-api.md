@@ -171,6 +171,7 @@ POST /api/v1/inputs/probe
 | POST | `/subscribers/{id}/actions/extend` | `{days}` or `{until}` | Support+ |
 | POST | `/subscribers/{id}/actions/suspend` · `resume` · `ban` | Status | Support+ |
 | POST | `/subscribers/{id}/actions/regenerate-token` | New token, kicks sessions | Support+ |
+| GET | `/subscribers/{id}/history` | History from the audit log: who, what, when (TVR-040) | Support+ |
 | GET | `/subscribers/{id}/devices` · DELETE `/devices/{deviceId}` | Devices | Support+ |
 | GET | `/subscribers/{id}/sessions` | Active sessions and history | Support+ |
 | POST | `/subscribers/import` (CSV) · GET `/subscribers/export` | Bulk operations | Admin |

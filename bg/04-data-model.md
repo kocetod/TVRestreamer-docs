@@ -153,6 +153,7 @@ erDiagram
     AUDIT_LOG {
         bigint id PK
         uuid actor_id FK
+        string actor_email
         inet ip
         string action
         string entity_type
@@ -196,7 +197,7 @@ erDiagram
 | `device.fingerprint` | Hash на device ID, ако плейърът праща такъв, иначе на user-agent + IP. Уникален за абоната (BR-06). |
 | `session_history` | Партициониране по месец (`PARTITION BY RANGE (started_at)`), съхранение 90 дни. |
 | `stream_event` | Партициониране по месец (UTC, `stream_event_YYYY_MM`, функция `tvr_stream_event_partition`), съхранение 180 дни: всяка нощ се създава следващият месец и се трият целите месеци, изтекли преди 180 дни (TVR-029). `STATUS` = смяна на състоянието (`data.from`/`to`); `FAILOVER` = смяна на входа (`data.from`/`to` — id на входове, `reason`). Индекси: `(stream_id, ts)` за историята на канал и `(ts DESC)` за последните събития на таблото (V4, TVR-034). |
-| `audit_log` | Append-only, съхранение 1 година. |
+| `audit_log` | Append-only, съхранение 1 година (V6, TVR-040). `actor_email` пази имейла на администратора към момента на промяната (`actor_id` става `NULL` при изтрит администратор); `NULL` = системата. `diff` = какво се е променило (`{поле: {from, to}}`), никога тайни (пароли, токени). Индекси: `(entity_type, entity_id, ts DESC)` за историята на обект и `(ts DESC)` за екрана „Одит“ (TVR-074). Засега пишат само промените по абонати. |
 
 ## 3. Данни в Redis
 

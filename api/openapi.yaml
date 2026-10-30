@@ -673,6 +673,34 @@ paths:
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+  /subscribers/{id}/history:
+    parameters: [{$ref: '#/components/parameters/id'}]
+    get:
+      tags: [subscribers]
+      summary: History of the subscriber from the audit log, newest first (FR-AUD-01, TVR-040)
+      description: |
+        Every change through the API is written to `audit_log` in the same transaction: CREATE, UPDATE (only
+        when something changed), DELETE, EXTEND, SUSPEND, RESUME, BAN, REGENERATE_TOKEN — with the admin, the IP
+        and `diff` = what changed (`{field: {from, to}}`; packages as `{added, removed}` names; a password only as
+        `{changed, set}`). Tokens and passwords never go in. ADMIN, OPERATOR and SUPPORT; size defaults to 20.
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/size'
+      responses:
+        '200':
+          description: Page of history entries
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PageMeta'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: {$ref: '#/components/schemas/AuditEntry'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
 
   /sessions:
     get:
@@ -851,6 +879,21 @@ components:
         id: {type: string, format: uuid}
         email: {type: string, format: email}
         role: {type: string, enum: [ADMIN, OPERATOR, SUPPORT, VIEWER]}
+    AuditEntry:
+      type: object
+      description: "A row of audit_log (V6, TVR-040); the audit screen with filters comes with TVR-074."
+      properties:
+        id: {type: integer, format: int64}
+        ts: {type: string, format: date-time}
+        actorId: {type: string, format: uuid, nullable: true, description: 'null = the system (jobs)'}
+        actorEmail: {type: string, nullable: true, description: 'e-mail of the admin at the time of the change'}
+        action: {type: string, enum: [CREATE, UPDATE, DELETE, EXTEND, SUSPEND, RESUME, BAN, REGENERATE_TOKEN]}
+        entityType: {type: string, example: subscriber}
+        entityId: {type: string}
+        diff:
+          type: object
+          additionalProperties: true
+          example: {days: 30, expiresAt: {from: '2026-11-01', to: '2026-12-01'}}
     PageMeta:
       type: object
       properties:
@@ -1265,7 +1308,7 @@ components:
         connected: {type: boolean, description: 'Open gRPC stream from the agent right now'}
     DashboardSummary:
       type: object
-      description: "TVR-034. viewersNow and activeSubscribers stay null until sessions (TVR-066) and subscribers (TVR-040); egressBps = network out of all servers with fresh metrics, null when none (TVR-035)."
+      description: "TVR-034. viewersNow stays null until sessions (TVR-066); activeSubscribers = subscribers with status ACTIVE (TVR-040), null when they cannot be counted; egressBps = network out of all servers with fresh metrics, null when none (TVR-035)."
       properties:
         at: {type: string, format: date-time}
         streams:
