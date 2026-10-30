@@ -739,6 +739,43 @@ paths:
         '403': {description: Suspended, banned or expired, content: {text/plain: {schema: {type: string}}}}
         '404': {description: No subscriber with this token (also the old token after regenerate-token), content: {text/plain: {schema: {type: string}}}}
 
+  /internal/auth:
+    servers:
+      - url: http://tvr-core:8080
+        description: core itself — called only by the nginx edge (auth_request), never by players
+    get:
+      tags: [playlists]
+      security: []
+      summary: Playback check of the edge (FR-AUT-01/03, TVR-042)
+      description: |
+        Token and channel come from `X-Original-URI` (`/live/{slug}/index.m3u8?token=` or `/ts/{slug}.ts?token=`);
+        `token`, `slug`, `ip` query parameters are a fallback for manual checks. Checks in order: token → status →
+        last day → channel in an active package (not deleted) → client IP in the allow list. Rights are cached in
+        Redis `auth:<token>` for 10 s; every change of the subscriber drops the key. Empty body. With
+        `tvr.access.internal-token` set, a request without the matching `X-Internal-Token` gets 404.
+      parameters:
+        - {name: X-Original-URI, in: header, schema: {type: string, example: '/live/btv-hd/index.m3u8?token=a8Kf3xQ9mZ2LwP7sR4tY1uV6bN0cD5eH'}}
+        - {name: X-Real-IP, in: header, schema: {type: string}}
+        - {name: X-Internal-Token, in: header, schema: {type: string}}
+        - {name: token, in: query, schema: {type: string}}
+        - {name: slug, in: query, schema: {type: string}}
+        - {name: ip, in: query, schema: {type: string}}
+      responses:
+        '200':
+          description: Allowed
+          headers:
+            X-Subscriber-Id: {schema: {type: string, format: uuid}}
+            X-Sign-Expires: {description: 'epoch seconds; now + tvr.access.sign-ttl (60 s) — segment signature (TVR-044)', schema: {type: integer}}
+        '401':
+          description: No, malformed or unknown token
+          headers:
+            X-Deny-Reason: {schema: {type: string, enum: [TOKEN]}}
+        '403':
+          description: Refused
+          headers:
+            X-Deny-Reason: {schema: {type: string, enum: [EXPIRED, SUSPENDED, BANNED, NOT_IN_PACKAGE, IP]}}
+        '404': {description: 'X-Internal-Token missing or wrong (when configured)'}
+
   /sessions:
     get:
       tags: [sessions]

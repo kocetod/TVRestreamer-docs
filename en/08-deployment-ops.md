@@ -93,6 +93,7 @@ location = /_auth {
     proxy_pass_request_body off;
     proxy_set_header X-Original-URI $request_uri;
     proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Internal-Token $tvr_internal_token;   # = TVR_INTERNAL_TOKEN of core (TVR-042)
     proxy_cache auth_cache;
     proxy_cache_key "$arg_token$slug$remote_addr";
     proxy_cache_valid 200 10s;

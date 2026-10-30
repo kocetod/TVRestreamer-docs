@@ -205,7 +205,7 @@ erDiagram
 |---|---|---|---|
 | `sess:{subscriberId}` | HASH | — | `{sessionKey → JSON(stream, ip, ua, edge, started, last_seen)}` |
 | `sess:last:{sessionKey}` | STRING | 30 s | Session heartbeat (refreshed on every playlist request) |
-| `auth:{token}` | STRING (JSON) | 10 s | Cached subscriber rights (status, expiry, slugs, limit) |
+| `auth:{token}` | STRING (JSON) | 10 s | Cached subscriber rights: `{subscriberId, status, expiresAt, slugs, allowedIps, maxConnections}`; `"-"` = unknown token (TVR-042). Dropped on every change of the subscriber |
 | `stream:status:{id}` | STRING (JSON) | 30 s | Last status from the agent: state, activeInputId, bitrateIn, since, lastError, nodeId, at (TVR-020) |
 | `node:metrics:{id}` | STRING (JSON) | 30 s | Last metrics of the server (the agent sends them every 5 s): CPU, RAM, network, work dir disk, processes, load (TVR-035); same as `node.metrics` |
 | `rl:auth:{ip}` | STRING | 60 s | Rate limit for failed attempts |

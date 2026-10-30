@@ -261,8 +261,10 @@ data: {"reason":"token-expired"}
 
 | Метод | Път | Извиква | Описание |
 |---|---|---|---|
-| GET | `/internal/auth` | nginx `auth_request` | Входни headers: `X-Original-URI`, `X-Real-IP`, `User-Agent`. Отговор `200` + `X-Session-Id`, `X-Sign-Expires` / `401` / `403` + `X-Deny-Reason: EXPIRED\|LIMIT\|NOT_IN_PACKAGE\|IP\|GEO` |
+| GET | `/internal/auth` | nginx `auth_request` | Входни headers: `X-Original-URI` (заявката на плейъра с `?token=`), `X-Real-IP`, `X-Internal-Token` (ако е зададен). Отговор `200` + `X-Subscriber-Id`, `X-Sign-Expires` / `401` / `403` + `X-Deny-Reason: TOKEN\|EXPIRED\|SUSPENDED\|BANNED\|NOT_IN_PACKAGE\|IP` (`LIMIT` — TVR-045, `GEO` — TVR-097) |
 | gRPC | `AgentControl.Connect(stream)` | tvr-agent | Двупосочен поток (виж [03-architecture](03-architecture.md) §7) |
+
+> `/internal/auth` (TVR-042): токенът и каналът идват от `X-Original-URI` (`/live/{slug}/index.m3u8?token=` или `/ts/{slug}.ts?token=`); за ръчни проверки — и `?token=&slug=&ip=`. Проверките по ред: токен (няма/непознат → 401 `TOKEN`) → статус (`SUSPENDED`, `BANNED`, `EXPIRED`) → последният ден не е минал (`EXPIRED`, без да чака нощната задача) → каналът е в **активен** пакет на абоната и не е изтрит (`NOT_IN_PACKAGE`, TC-07) → IP в allow list-а, ако има такъв (`IP`). Правата се кешират в Redis `auth:<token>` за 10 сек (`tvr.access.cache-ttl`), вкл. непознати токени (`"-"`); всяка промяна по абоната през API трие ключа веднага, промените по пакети/канали се виждат до 10 сек. `X-Sign-Expires` = сега + 60 сек (подписът на сегментите, TVR-044); `X-Session-Id` идва със сесиите (TVR-045). С `TVR_INTERNAL_TOKEN` заявка без съвпадащ `X-Internal-Token` получава 404. Измерено в облака (2 ядра): ~1 650 заявки/сек, p99 ≈ 14 ms.
 
 ## 5. Webhooks (R2)
 

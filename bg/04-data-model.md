@@ -205,7 +205,7 @@ erDiagram
 |---|---|---|---|
 | `sess:{subscriberId}` | HASH | — | `{sessionKey → JSON(stream, ip, ua, edge, started, last_seen)}` |
 | `sess:last:{sessionKey}` | STRING | 30 сек | Heartbeat на сесията (обновява се при всяка заявка за плейлист) |
-| `auth:{token}` | STRING (JSON) | 10 сек | Кеш на правата на абоната (статус, изтичане, slug-ове, лимит) |
+| `auth:{token}` | STRING (JSON) | 10 сек | Кеш на правата на абоната: `{subscriberId, status, expiresAt, slugs, allowedIps, maxConnections}`; `"-"` = непознат токен (TVR-042). Трие се при всяка промяна по абоната |
 | `stream:status:{id}` | STRING (JSON) | 30 сек | Последен статус от агента: state, activeInputId, bitrateIn, since, lastError, nodeId, at (TVR-020) |
 | `node:metrics:{id}` | STRING (JSON) | 30 сек | Последни метрики на сървъра (агентът ги праща на 5 сек): CPU, RAM, мрежа, диск на work dir, процеси, load (TVR-035); същото като `node.metrics` |
 | `rl:auth:{ip}` | STRING | 60 сек | Rate limit за неуспешни опити |
