@@ -631,6 +631,26 @@ paths:
         '204': {description: Deleted}
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
+  /subscribers/actions/expire:
+    post:
+      tags: [subscribers]
+      summary: Run the nightly expiry now (BR-01, TVR-046) — ADMIN
+      description: |
+        The same job runs every day at 00:00 Europe/Sofia and at core start: ACTIVE subscribers whose last day
+        (`expiresAt`) is before today become EXPIRED, each with an `EXPIRE` history entry by the system; their cached
+        access and active devices are dropped, so viewing stops (TC-06). SUSPENDED and BANNED keep their status.
+        Idempotent: a second run expires nobody.
+      responses:
+        '200':
+          description: What the run did
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  today: {type: string, format: date, description: 'today in Europe/Sofia'}
+                  expired: {type: integer, description: number of subscribers marked EXPIRED}
+        '403': {$ref: '#/components/responses/Problem'}
   /subscribers/{id}/actions/extend:
     parameters: [{$ref: '#/components/parameters/id'}]
     post:
@@ -682,7 +702,8 @@ paths:
       summary: History of the subscriber from the audit log, newest first (FR-AUD-01, TVR-040)
       description: |
         Every change through the API is written to `audit_log` in the same transaction: CREATE, UPDATE (only
-        when something changed), DELETE, EXTEND, SUSPEND, RESUME, BAN, REGENERATE_TOKEN — with the admin, the IP
+        when something changed), DELETE, EXTEND, SUSPEND, RESUME, BAN, REGENERATE_TOKEN, and EXPIRE by the nightly job
+        (TVR-046, actor `null` = system) — with the admin, the IP
         and `diff` = what changed (`{field: {from, to}}`; packages as `{added, removed}` names; a password only as
         `{changed, set}`). Tokens and passwords never go in. ADMIN, OPERATOR and SUPPORT; size defaults to 20.
       parameters:
