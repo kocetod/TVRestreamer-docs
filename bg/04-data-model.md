@@ -198,6 +198,7 @@ erDiagram
 | `session_history` | Партициониране по месец (`PARTITION BY RANGE (started_at)`), съхранение 90 дни. |
 | `stream_event` | Партициониране по месец (UTC, `stream_event_YYYY_MM`, функция `tvr_stream_event_partition`), съхранение 180 дни: всяка нощ се създава следващият месец и се трият целите месеци, изтекли преди 180 дни (TVR-029). `STATUS` = смяна на състоянието (`data.from`/`to`); `FAILOVER` = смяна на входа (`data.from`/`to` — id на входове, `reason`). Индекси: `(stream_id, ts)` за историята на канал и `(ts DESC)` за последните събития на таблото (V4, TVR-034). |
 | `audit_log` | Append-only, съхранение 1 година (V6, TVR-040). `actor_email` пази имейла на администратора към момента на промяната (`actor_id` става `NULL` при изтрит администратор); `NULL` = системата. `diff` = какво се е променило (`{поле: {from, to}}`), никога тайни (пароли, токени). Индекси: `(entity_type, entity_id, ts DESC)` за историята на обект и `(ts DESC)` за екрана „Одит“ (TVR-074). Засега пишат само промените по абонати. |
+| `stream_logo` | Качено лого на канала (V7, TVR-047), сервира се на `/logos/{stream_id}.{png\|svg}?v=<sha256[0..8]>`; `stream.logo_url` пази този път или външен `http(s)` адрес. Запис с друг адрес трие каченото лого. |
 
 ## 3. Данни в Redis
 
@@ -259,4 +260,5 @@ stateDiagram-v2
 | V1 | TVR-005 | `node`, `category`, `stream` (slug уникален сред неизтритите, меко изтриване), `stream_input` (приоритет 1–8, само мрежови URL — SEC-07), `stream_output` |
 | V2 | TVR-006 | `admin_user` (имейл уникален без значение от регистъра, роли ADMIN/OPERATOR/SUPPORT/VIEWER), `admin_refresh_token` (само SHA-256 hash, ротация) |
 | V5 | TVR-037 | `package` (име уникално без значение от регистъра), `package_stream` (подредба `sort_order`, уникална в пакета с отложена проверка), `subscriber` (`username` уникално без значение от регистъра, `token` — 32 символа base62, статуси, `max_connections` 1–100, `limit_policy`, `allowed_ips cidr[]`, `allowed_countries` ISO 3166-1 alpha-2), `subscriber_package`, `device` (уникален `fingerprint` в рамките на абоната) |
+| V7 | TVR-047 | `stream_logo` (едно качено лого на канал: `content_type` PNG/SVG, `data bytea` ≤ 512 KB, `sha256`; изтрива се с канала) |
 - Всяка миграция трябва да е обратно съвместима поне с една предишна версия на кода (zero-downtime deploy).

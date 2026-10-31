@@ -196,6 +196,59 @@ paths:
           content:
             application/problem+json:
               schema: {$ref: '#/components/schemas/Problem'}
+  /streams/{id}/logo:
+    parameters: [{$ref: '#/components/parameters/id'}]
+    put:
+      tags: [streams]
+      summary: Upload the channel logo (FR-PLY-04, TVR-047) — ADMIN/OPERATOR
+      description: |
+        PNG, or SVG without scripts, event handlers, `javascript:`, embedded HTML, entities or links to other
+        addresses; at most 512 KB. Replaces the previous upload. Does not change the channel: put the returned
+        `logoUrl` into the channel's `logoUrl` and save it (PUT /streams/{id}); saving another address drops the file.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: {type: string, format: binary}
+      responses:
+        '200':
+          description: Stored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  logoUrl: {type: string, example: '/logos/0b6e2a4c-1d2f-4e5a-9b7c-3d8e9f0a1b2c.png?v=0123abcd'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+  /logos/{file}:
+    servers:
+      - url: https://tv.example.com
+        description: the edge domain (cached there); also the origin and the panel nginx, served by tvr-core
+    get:
+      tags: [streams]
+      security: []
+      summary: An uploaded channel logo (TVR-047) — public, served through the edge
+      description: |
+        `{file}` = `{streamId}.png` or `{streamId}.svg`. With the current `?v=` the answer is cacheable for a year
+        (`immutable`); `ETag` = SHA-256, `If-None-Match` → 304. SVG comes with a sandboxing
+        `Content-Security-Policy` and `X-Content-Type-Options: nosniff`.
+      parameters:
+        - {name: file, in: path, required: true, schema: {type: string, example: '0b6e2a4c-1d2f-4e5a-9b7c-3d8e9f0a1b2c.png'}}
+        - {name: v, in: query, schema: {type: string}}
+      responses:
+        '200':
+          description: The image
+          content:
+            image/png: {schema: {type: string, format: binary}}
+            image/svg+xml: {schema: {type: string}}
+        '304': {description: Not modified}
+        '404': {description: No such logo}
   /streams/{id}/logs:
     parameters: [{$ref: '#/components/parameters/id'}]
     get:
@@ -1106,7 +1159,7 @@ components:
         lcn: {type: integer, minimum: 1, maximum: 9999}
         categoryId: {type: string, format: uuid}
         nodeId: {type: string, format: uuid}
-        logoUrl: {type: string, maxLength: 500, description: http(s) URL}
+        logoUrl: {type: string, maxLength: 500, description: 'http(s) URL, or the path of an uploaded logo (/logos/{id}.png?v=…, TVR-047)'}
         epgId: {type: string, maxLength: 100}
         language: {type: string, maxLength: 10, example: bg}
         description: {type: string}

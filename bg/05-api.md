@@ -45,9 +45,13 @@
 | GET | `/streams/{id}/metrics?from&to&step` | Времеви редове (битрейт, CC, зрители) | Viewer+ |
 | GET | `/streams/{id}/events` | История на събитията, най-новите първо: `FAILOVER`, `STATUS`, … Филтри `type` (няколко), `from`, `to` (ISO-8601), `page`, `size` | Viewer+ |
 | GET | `/streams/{id}/logs?tail=500` | Последни редове лог от агента (1–1000, TVR-023; SSE `/logs/stream` — по-късно) | Operator+ |
+| PUT | `/streams/{id}/logo` | Качване на лого (multipart `file`, PNG/SVG ≤ 512 KB, TVR-047) → `{logoUrl}`; записва се в `logoUrl` с канала | Operator+ |
+| GET | `/logos/{id}.{png\|svg}?v=` | Каченото лого — публично, кешира се от edge-а | публичен |
 | GET | `/streams/{id}/thumbnail.jpg` | Последна снимка | Viewer+ |
 | POST | `/streams/bulk` | `{ids[], action: start\|stop\|move\|addToPackage, params}` | Operator+ |
 | POST | `/inputs/probe` | `{type, url, timeoutSec?, options?}` → резултат от ffprobe до 10 сек (FR-INP-07, TVR-022) | Operator+ |
+
+> Лога (TVR-047, FR-PLY-04): `logoUrl` е `http(s)` адрес или пътят на качено лого (`/logos/{id}.png?v=…`). Качването не променя канала (версията не расте): формата слага върнатия URL в полето и го записва с останалото; запис с друг адрес трие качения файл. SVG със скриптове, обработчици на събития, `javascript:`, вграден HTML, entity-та или връзки към други адреси се отказва (400); SVG се сервира с `Content-Security-Policy: …; sandbox` и `nosniff`. С текущото `?v=` отговорът е `Cache-Control: public, max-age=31536000, immutable` (ново качване = нов URL), `ETag` = SHA-256. В M3U пътят става абсолютен с адреса за абонатите (`tvg-logo`). Сервира се от core през edge-а (кеш), origin-а и nginx-а на панела; във Vite — proxy за `/logos`.
 
 **Пример — създаване на канал:**
 

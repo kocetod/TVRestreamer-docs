@@ -198,6 +198,7 @@ erDiagram
 | `session_history` | Monthly partitioning (`PARTITION BY RANGE (started_at)`), 90-day retention. |
 | `stream_event` | Monthly partitioning (UTC, `stream_event_YYYY_MM`, function `tvr_stream_event_partition`), 180-day retention: every night next month is created and whole months that ended more than 180 days ago are dropped (TVR-029). `STATUS` = state change (`data.from`/`to`); `FAILOVER` = input switch (`data.from`/`to` — input ids, `reason`). Indexes: `(stream_id, ts)` for a channel's history and `(ts DESC)` for the dashboard's latest events (V4, TVR-034). |
 | `audit_log` | Append-only, 1-year retention (V6, TVR-040). `actor_email` keeps the admin's e-mail at the time of the change (`actor_id` becomes `NULL` when the admin is deleted); `NULL` = the system. `diff` = what changed (`{field: {from, to}}`), never secrets (passwords, tokens). Indexes: `(entity_type, entity_id, ts DESC)` for an object's history and `(ts DESC)` for the Audit screen (TVR-074). For now only subscriber changes are written. |
+| `stream_logo` | Uploaded channel logo (V7, TVR-047), served at `/logos/{stream_id}.{png\|svg}?v=<sha256[0..8]>`; `stream.logo_url` holds that path or an external `http(s)` address. Saving another address drops the uploaded logo. |
 
 ## 3. Data in Redis
 
@@ -259,4 +260,5 @@ stateDiagram-v2
 | V1 | TVR-005 | `node`, `category`, `stream` (slug unique among non-deleted rows, soft delete), `stream_input` (priority 1–8, network URLs only — SEC-07), `stream_output` |
 | V2 | TVR-006 | `admin_user` (case-insensitive unique email, roles ADMIN/OPERATOR/SUPPORT/VIEWER), `admin_refresh_token` (SHA-256 hash only, rotation) |
 | V5 | TVR-037 | `package` (case-insensitive unique name), `package_stream` (`sort_order`, unique per package with a deferred check), `subscriber` (case-insensitive unique `username`, `token` — 32 base62 chars, statuses, `max_connections` 1–100, `limit_policy`, `allowed_ips cidr[]`, `allowed_countries` ISO 3166-1 alpha-2), `subscriber_package`, `device` (`fingerprint` unique per subscriber) |
+| V7 | TVR-047 | `stream_logo` (one uploaded logo per channel: `content_type` PNG/SVG, `data bytea` ≤ 512 KB, `sha256`; cascade with the channel) |
 - Every migration must be backward compatible with at least the previous code version (zero-downtime deploy).

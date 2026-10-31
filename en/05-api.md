@@ -45,9 +45,13 @@
 | GET | `/streams/{id}/metrics?from&to&step` | Time series (bitrate, CC, viewers) | Viewer+ |
 | GET | `/streams/{id}/events` | Event history, newest first: `FAILOVER`, `STATUS`, … Filters `type` (several), `from`, `to` (ISO-8601), `page`, `size` | Viewer+ |
 | GET | `/streams/{id}/logs?tail=500` | Last log lines from the agent (1–1000, TVR-023; SSE `/logs/stream` later) | Operator+ |
+| PUT | `/streams/{id}/logo` | Upload a logo (multipart `file`, PNG/SVG ≤ 512 KB, TVR-047) → `{logoUrl}`; saved into `logoUrl` with the channel | Operator+ |
+| GET | `/logos/{id}.{png\|svg}?v=` | The uploaded logo — public, cached by the edge | public |
 | GET | `/streams/{id}/thumbnail.jpg` | Latest thumbnail | Viewer+ |
 | POST | `/streams/bulk` | `{ids[], action: start\|stop\|move\|addToPackage, params}` | Operator+ |
 | POST | `/inputs/probe` | `{type, url, timeoutSec?, options?}` → ffprobe result within 10 s (FR-INP-07, TVR-022) | Operator+ |
+
+> Logos (TVR-047, FR-PLY-04): `logoUrl` is an `http(s)` address or the path of an uploaded logo (`/logos/{id}.png?v=…`). The upload does not change the channel (no version bump): the form puts the returned URL into the field and saves it with the rest; saving another address drops the uploaded file. SVG with scripts, event handlers, `javascript:`, embedded HTML, entities or links to other addresses is refused (400); SVG is served with `Content-Security-Policy: …; sandbox` and `nosniff`. With the current `?v=` the answer is `Cache-Control: public, max-age=31536000, immutable` (a new upload is a new URL), `ETag` = SHA-256. In the M3U the path becomes absolute with the subscriber address (`tvg-logo`). Served by core through the edge (cache), the origin and the panel nginx; Vite proxies `/logos` in dev.
 
 **Example — create a stream:**
 
