@@ -79,6 +79,8 @@ volumes: {pgdata: {}}
 
 ### 2.2 nginx edge — key parts
 
+> In dev (TVR-043) the edge is the `tvr-edge` container on :8000 (`TVRestreamer_Code/deploy/nginx/edge.conf.template`): `auth_request` for `/live/{slug}/index.m3u8`, answers cached for 10 s (`$request_uri|$remote_addr`), a stale allowed answer while core is down (NFR-13), 401/403 → 403 + `X-Deny-Reason`, `/pl/` to core. Segment signing (njs + `secure_link`) comes with TVR-044, routing to ingest servers with TVR-072.
+
 ```nginx
 # Playlist authorization through core (cached)
 location ~ ^/live/(?<slug>[a-z0-9-]+)/index\.m3u8$ {

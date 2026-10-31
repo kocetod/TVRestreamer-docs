@@ -79,6 +79,8 @@ volumes: {pgdata: {}}
 
 ### 2.2 nginx edge — ключови части
 
+> В dev (TVR-043) edge-ът е контейнерът `tvr-edge` на :8000 (`TVRestreamer_Code/deploy/nginx/edge.conf.template`): `auth_request` за `/live/{slug}/index.m3u8`, кеш на отговорите 10 сек (`$request_uri|$remote_addr`), стар разрешен отговор при недостъпен core (NFR-13), 401/403 → 403 + `X-Deny-Reason`, `/pl/` към core. Подписването на сегментите (njs + `secure_link`) идва с TVR-044, разпределението по ingest сървъри — с TVR-072.
+
 ```nginx
 # Авторизация на плейлиста през core (с кеш)
 location ~ ^/live/(?<slug>[a-z0-9-]+)/index\.m3u8$ {
