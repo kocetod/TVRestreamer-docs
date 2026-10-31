@@ -750,12 +750,16 @@ paths:
       description: |
         Token and channel come from `X-Original-URI` (`/live/{slug}/index.m3u8?token=` or `/ts/{slug}.ts?token=`);
         `token`, `slug`, `ip` query parameters are a fallback for manual checks. Checks in order: token → status →
-        last day → channel in an active package (not deleted) → client IP in the allow list. Rights are cached in
-        Redis `auth:<token>` for 10 s; every change of the subscriber drops the key. Empty body. With
+        last day → channel in an active package (not deleted) → client IP in the allow list → device limit (TVR-045).
+        Rights are cached in Redis `auth:<token>` for 10 s; every change of the subscriber drops the key.
+        A device is subscriber + `X-Real-IP` + `User-Agent` (BR-06); it counts as watching for 30 s after its last
+        allowed request (FR-SES-03). A new device over `maxConnections` gets 403 `LIMIT` (`REJECT_NEW`), or the
+        device that started first is closed and kept out for 2 min (`KICK_OLDEST`). Empty body. With
         `tvr.access.internal-token` set, a request without the matching `X-Internal-Token` gets 404.
       parameters:
         - {name: X-Original-URI, in: header, schema: {type: string, example: '/live/btv-hd/index.m3u8?token=a8Kf3xQ9mZ2LwP7sR4tY1uV6bN0cD5eH'}}
         - {name: X-Real-IP, in: header, schema: {type: string}}
+        - {name: User-Agent, in: header, description: "the player's user agent (part of the device, TVR-045)", schema: {type: string}}
         - {name: X-Internal-Token, in: header, schema: {type: string}}
         - {name: token, in: query, schema: {type: string}}
         - {name: slug, in: query, schema: {type: string}}
@@ -765,6 +769,7 @@ paths:
           description: Allowed
           headers:
             X-Subscriber-Id: {schema: {type: string, format: uuid}}
+            X-Session-Id: {description: 'the device: 22 base64url characters, hash of subscriber, IP and user agent (TVR-045)', schema: {type: string}}
             X-Sign-Expires: {description: 'epoch seconds; now + tvr.access.sign-ttl (60 s). Informational: the edge signs segments with its own TVR_SIGN_TTL, because a cached answer carries an old time (TVR-044)', schema: {type: integer}}
         '401':
           description: No, malformed or unknown token
@@ -773,7 +778,7 @@ paths:
         '403':
           description: Refused
           headers:
-            X-Deny-Reason: {schema: {type: string, enum: [EXPIRED, SUSPENDED, BANNED, NOT_IN_PACKAGE, IP]}}
+            X-Deny-Reason: {schema: {type: string, enum: [EXPIRED, SUSPENDED, BANNED, NOT_IN_PACKAGE, IP, LIMIT]}}
         '404': {description: 'X-Internal-Token missing or wrong (when configured)'}
 
   /sessions:

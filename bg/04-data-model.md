@@ -203,9 +203,11 @@ erDiagram
 
 | Ключ | Тип | TTL | Съдържание |
 |---|---|---|---|
-| `sess:{subscriberId}` | HASH | — | `{sessionKey → JSON(stream, ip, ua, edge, started, last_seen)}` |
-| `sess:last:{sessionKey}` | STRING | 30 сек | Heartbeat на сесията (обновява се при всяка заявка за плейлист) |
-| `auth:{token}` | STRING (JSON) | 10 сек | Кеш на правата на абоната: `{subscriberId, status, expiresAt, slugs, allowedIps, maxConnections}`; `"-"` = непознат токен (TVR-042). Трие се при всяка промяна по абоната |
+| `sess:{subscriberId}` | ZSET | 60 сек | Активните устройства: `sessionKey → последна заявка (ms)`; активно е до 30 сек след нея (TVR-045) |
+| `sess:start:{subscriberId}` | ZSET | 60 сек | `sessionKey → начало (ms)`; `KICK_OLDEST` затваря най-старото |
+| `sess:info:{subscriberId}` | HASH | 60 сек | `sessionKey → JSON(stream, ip, ua)` — за списъка със сесии (FR-SES-01) |
+| `sess:kicked:{sessionKey}` | STRING | 2 мин | Затворено от `KICK_OLDEST` устройство — отказва се (`LIMIT`), за да не изгони новото |
+| `auth:{token}` | STRING (JSON) | 10 сек | Кеш на правата на абоната: `{subscriberId, status, expiresAt, slugs, allowedIps, maxConnections, limitPolicy}`; `"-"` = непознат токен (TVR-042). Трие се при всяка промяна по абоната |
 | `stream:status:{id}` | STRING (JSON) | 30 сек | Последен статус от агента: state, activeInputId, bitrateIn, since, lastError, nodeId, at (TVR-020) |
 | `node:metrics:{id}` | STRING (JSON) | 30 сек | Последни метрики на сървъра (агентът ги праща на 5 сек): CPU, RAM, мрежа, диск на work dir, процеси, load (TVR-035); същото като `node.metrics` |
 | `rl:auth:{ip}` | STRING | 60 сек | Rate limit за неуспешни опити |
