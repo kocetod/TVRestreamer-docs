@@ -46,6 +46,7 @@ flowchart TB
 | tvr-core | Docker image `tvrestream/core:<ver>` | Docker Compose on the control plane |
 | tvr-ui | Static files in the core image (or nginx) | Together with core |
 | tvr-agent | Docker image `tvrestream/agent:<ver>` (with static FFmpeg 7) **or** `.deb` + systemd | `curl https://admin/install-agent.sh \| sudo bash -s -- --token <ENROLL>` |
+| **All on one server** (MVP) | `tvrestreamer_<ver>_all.deb` (core + agent + UI + nginx site + systemd), GitHub Release on tag `v*` | `sudo bash install.sh [--static-ffmpeg]` or `sudo apt install ./tvrestreamer_<ver>_all.deb` — see `TVRestreamer_Code/packaging/README.md` |
 | nginx edge/origin | Docker image `tvrestream/edge:<ver>` with ready configuration | Ansible role `edge` |
 | Monitoring | Prometheus, Grafana, node_exporter, nginx-exporter | Docker Compose |
 
