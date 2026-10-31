@@ -214,7 +214,10 @@ POST /api/v1/inputs/probe
 | POST | `/import/m3u` · `/import/astra` | Импорт (връща preview; `?commit=true` записва) |
 | GET/POST | `/config/export` · `/config/import` | Пълен backup на конфигурацията |
 | GET | `/reports/{type}?from&to` | `top-streams`, `peak-viewers`, `uptime`, `subscribers` |
-| GET/POST/DELETE | `/admin-users`, `/api-keys` | Администратори и ключове |
+| GET/POST · PUT/DELETE `/{id}` | `/admins` | Потребители на панела и техните роли (TVR-048, ADMIN) |
+| GET/POST/DELETE | `/api-keys` | API ключове |
+
+> Роли (TVR-048, FR-ADM-02, документ 02 §14) се проверяват от core при всяка заявка: OPERATOR само чете абонатите; SUPPORT променя абонати (без DELETE и без ръчното изтичане), няма `/nodes` и получава каналите с входове без `url`/`options` (без `/logs`, TC-12); VIEWER чете всичко без потребителите на панела, с `url` на входовете и `token`/`playlistUrl` на абонатите = `null`. `/admins`: не за себе си (роля, активен, изтриване → 409), остава поне един активен ADMIN (409); промяна отнема refresh токените на потребителя — новите права важат до 15 мин (ролята е в access токена).
 
 **Реално време — `GET /api/v1/events` (TVR-030, FR-MON-02, NFR-10 ≤ 2 сек).** Server-Sent Events (`text/event-stream`). Токенът е в `Authorization: Bearer …` или — за `EventSource` в браузъра, който не праща заглавки — в `?access_token=` (само за този път). `?types=` избира типовете (със запетая; `stream.*`, `node.*`); без него идват всички, непознат тип → 400.
 

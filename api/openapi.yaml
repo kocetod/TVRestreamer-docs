@@ -878,11 +878,73 @@ paths:
       responses:
         '204': {description: Kicked}
 
+  /admins:
+    get:
+      tags: [auth]
+      summary: Users of the admin panel (TVR-048, FR-ADM-02) — ADMIN
+      description: |
+        Role matrix (document 02 §14): ADMIN everything; OPERATOR channels, packages, servers, reads subscribers;
+        SUPPORT subscribers without deleting, channels without inputs, no servers; VIEWER reads only, without channel
+        inputs and subscriber tokens. Sorted by e-mail.
+      responses:
+        '200':
+          description: Users
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: '#/components/schemas/AdminUser'}}
+        '403': {$ref: '#/components/responses/Problem'}
+    post:
+      tags: [auth]
+      summary: New user (e-mail stored in lower case; unique ignoring case → 409)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AdminWrite'}
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AdminUser'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+  /admins/{id}:
+    parameters: [{$ref: '#/components/parameters/id'}]
+    put:
+      tags: [auth]
+      summary: Change role, active or password
+      description: |
+        Not for oneself (role, active → 409; the own password may change); the last active ADMIN cannot be demoted,
+        deactivated or deleted (409). Any change revokes the user's refresh tokens: the new rights apply when the
+        current access token ends (≤ 15 min). Written to the audit log (`admin_user`), the password only as changed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AdminWrite'}
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AdminUser'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+    delete:
+      tags: [auth]
+      summary: Delete a user (not oneself, not the last active ADMIN)
+      responses:
+        '204': {description: Deleted}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+
   /nodes:
     get:
       tags: [nodes]
       description: |
-        Servers by name (any admin role). status becomes ONLINE on the agent's Hello and OFFLINE 15 s after
+        Servers by name (ADMIN, OPERATOR, VIEWER — not SUPPORT, TVR-048). status becomes ONLINE on the agent's Hello and OFFLINE 15 s after
         the last heartbeat (FR-NOD-02); connected = the agent has an open gRPC stream right now (TVR-017);
         metrics = the agent's last NodeMetrics, kept 30 s in Redis (TVR-035).
       responses:
@@ -1026,6 +1088,23 @@ components:
         tokenType: {type: string, example: Bearer}
         expiresIn: {type: integer, description: секунди, example: 900}
         user: {$ref: '#/components/schemas/UserInfo'}
+    AdminUser:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        email: {type: string, format: email}
+        role: {type: string, enum: [ADMIN, OPERATOR, SUPPORT, VIEWER]}
+        active: {type: boolean}
+        lastLoginAt: {type: string, format: date-time, nullable: true}
+        createdAt: {type: string, format: date-time}
+    AdminWrite:
+      type: object
+      description: 'POST: email, password, role required. PUT: any of password, role, active (the email does not change)'
+      properties:
+        email: {type: string, format: email, maxLength: 254}
+        password: {type: string, minLength: 8, maxLength: 128, writeOnly: true}
+        role: {type: string, enum: [ADMIN, OPERATOR, SUPPORT, VIEWER]}
+        active: {type: boolean}
     UserInfo:
       type: object
       properties:
@@ -1136,7 +1215,7 @@ components:
         id: {type: string, format: uuid, readOnly: true}
         priority: {type: integer, minimum: 1, maximum: 8, description: 'Failover order; default = position in the array'}
         type: {$ref: '#/components/schemas/InputType'}
-        url: {type: string, maxLength: 2000, example: 'http://provider/btv.ts', description: 'SEC-07: http, https, udp, rtp, srt, rtmp, rtmps, rtsp, dvb only'}
+        url: {type: string, maxLength: 2000, example: 'http://provider/btv.ts', description: 'SEC-07: http, https, udp, rtp, srt, rtmp, rtmps, rtsp, dvb only. In responses null for SUPPORT and VIEWER (TVR-048) — options are then empty too'}
         timeoutSec: {type: integer, default: 5, minimum: 1, maximum: 120}
         hotStandby: {type: boolean, default: false}
         enabled: {type: boolean, default: true}
@@ -1423,8 +1502,8 @@ components:
         allowedCountries: {type: array, items: {type: string}}
         note: {type: string, nullable: true}
         hasPassword: {type: boolean}
-        token: {type: string, description: 32 base62 characters}
-        playlistUrl: {type: string, format: uri, example: 'https://tv.example.com/pl/<token>.m3u'}
+        token: {type: string, nullable: true, description: '32 base62 characters; null for VIEWER (TVR-048)'}
+        playlistUrl: {type: string, format: uri, nullable: true, example: 'https://tv.example.com/pl/<token>.m3u', description: null for VIEWER}
         createdAt: {type: string, format: date-time}
         updatedAt: {type: string, format: date-time}
     Session:

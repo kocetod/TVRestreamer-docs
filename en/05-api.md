@@ -214,7 +214,10 @@ POST /api/v1/inputs/probe
 | POST | `/import/m3u` · `/import/astra` | Import (returns preview; `?commit=true` saves) |
 | GET/POST | `/config/export` · `/config/import` | Full configuration backup |
 | GET | `/reports/{type}?from&to` | `top-streams`, `peak-viewers`, `uptime`, `subscribers` |
-| GET/POST/DELETE | `/admin-users`, `/api-keys` | Administrators and keys |
+| GET/POST · PUT/DELETE `/{id}` | `/admins` | Users of the panel and their roles (TVR-048, ADMIN) |
+| GET/POST/DELETE | `/api-keys` | API keys |
+
+> Roles (TVR-048, FR-ADM-02, document 02 §14) are enforced by core for every request: OPERATOR reads subscribers only; SUPPORT changes subscribers (not DELETE, not the manual expiry), has no `/nodes`, and gets channels with inputs without `url`/`options` (no `/logs`, TC-12); VIEWER reads everything except the admin users, with input `url` and subscriber `token`/`playlistUrl` set to `null`. `/admins`: not for oneself (role, active, delete → 409), at least one active ADMIN remains (409); a change revokes the user's refresh tokens — the new rights apply within 15 min (the role is in the access token).
 
 **Real time — `GET /api/v1/events` (TVR-030, FR-MON-02, NFR-10 ≤ 2 s).** Server-Sent Events (`text/event-stream`). The token goes in `Authorization: Bearer …` or — for the browser's `EventSource`, which cannot send headers — in `?access_token=` (on this path only). `?types=` selects the types (comma separated; `stream.*`, `node.*`); without it everything is sent, an unknown type → 400.
 

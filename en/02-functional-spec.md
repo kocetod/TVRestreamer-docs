@@ -292,6 +292,8 @@ flowchart TB
 | **Support** | R | RW (no delete) | — | — | — |
 | **Viewer** | R | R | R | — | — |
 
+> Implemented in TVR-048: the API enforces this matrix (`SecurityConfig`, `Permissions`) and the panel hides what a role cannot use. Channels: SUPPORT and VIEWER see them without the inputs (addresses carry provider credentials) and without the log. Subscribers: VIEWER without the personal token and playlist link. Users of the panel: Admins page (ADMIN).
+
 | ID | Requirement | Pr. | Release |
 |---|---|:-:|:-:|
 | FR-ADM-01 | Login with email and password (bcrypt/argon2), JWT access (15 min) + refresh token | M | MVP |
