@@ -2,7 +2,7 @@
 
 [← Index](00-README.md) · [Български](../bg/12-development-plan.md)
 
-> **Tracking board:** [TvRestream Board](https://claude.ai/artifact/URXdaur2HqQf2g5okUWsy5) — all 111 tickets, statuses, test checklists and notes. The board is the source of truth for status; this document describes the plan and the process.
+> **Tracking board:** [TvRestream Board](https://claude.ai/artifact/URXdaur2HqQf2g5okUWsy5) — all 112 tickets, statuses, test checklists and notes. The board is the source of truth for status; this document describes the plan and the process.
 
 ## 1. How we work
 
@@ -73,7 +73,7 @@ stateDiagram-v2
 | **S1** · MVP | First stream: HTTP-TS → HLS | A stream created via the API runs on the agent and plays in VLC. | 13 | 11 | 1 |
 | **S2** · MVP | Failover and admin UI | The stream switches to a backup input on its own; streams are managed in the web panel. | 13 | 16 | 1–1,5 |
 | **S3** · MVP | Subscribers and protected playback | A subscriber watches via a personal M3U link; a device over the limit is refused. | 14 | 13.5 | 1–1,5 |
-| **S4** · R1 | Astra-level streaming | Hot standby < 3 s, full analyzer, all inputs and outputs. | 15 | 16 | 1,5 |
+| **S4** · R1 | Astra-level streaming | Hot standby < 3 s, full analyzer, all inputs and outputs. | 16 | 17 | 1,5 |
 | **S5** · R1 | Operator-ready | Sessions, alerts, multiple servers, 2FA, audit, Xtream API, statistics. | 18 | 18 | 1,5–2 |
 | **S6** · R1 | Production | Load and chaos tests pass; Ansible install; go-live. | 11 | 13 | 1–1,5 |
 | **R2** · R2 | Extensions | Webhooks, geo/IP, slate, automatic relocation, HA. | 12 | 14 | 3–4 |
@@ -216,6 +216,7 @@ flowchart LR
 | `TVR-063` | On-demand mode | Feature | M | M | TVR-043, TVR-018 |
 | `TVR-064` | Stream thumbnail | Feature | S | S | TVR-033 |
 | `TVR-065` | Failover chaos test (TC-02/03/04) | Test | M | M | TVR-051, TVR-052, TVR-054 |
+| `TVR-112` | Edge in the .deb package: auth_request, signed segments, device limit | Infra | M | M | TVR-043, TVR-044, TVR-045 |
 
 ### 4.6 S5 · Operator-ready
 
@@ -300,7 +301,7 @@ flowchart LR
 | E3 | Failover | 9 | S2, S4, R2 |
 | E4 | Analyzer | 5 | S2, S4, R2 |
 | E5 | Subscribers & packages | 7 | S3, S5, R3 |
-| E6 | Protected playback | 9 | S3, S5, R2 |
+| E6 | Protected playback | 10 | S3, S4, S5, R2 |
 | E7 | Playlists & EPG | 5 | S3, S5, S6 |
 | E8 | Dashboard & monitoring | 5 | S0, S2, S5 |
 | E9 | Alerts | 2 | S5 |
