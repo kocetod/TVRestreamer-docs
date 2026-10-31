@@ -2,7 +2,7 @@
 
 [← Index](00-README.md) · [Български](../bg/12-development-plan.md)
 
-> **Tracking board:** [TvRestream Board](https://claude.ai/artifact/URXdaur2HqQf2g5okUWsy5) — all 109 tickets, statuses, test checklists and notes. The board is the source of truth for status; this document describes the plan and the process.
+> **Tracking board:** [TvRestream Board](https://claude.ai/artifact/URXdaur2HqQf2g5okUWsy5) — all 111 tickets, statuses, test checklists and notes. The board is the source of truth for status; this document describes the plan and the process.
 
 ## 1. How we work
 
@@ -76,7 +76,7 @@ stateDiagram-v2
 | **S4** · R1 | Astra-level streaming | Hot standby < 3 s, full analyzer, all inputs and outputs. | 15 | 16 | 1,5 |
 | **S5** · R1 | Operator-ready | Sessions, alerts, multiple servers, 2FA, audit, Xtream API, statistics. | 18 | 18 | 1,5–2 |
 | **S6** · R1 | Production | Load and chaos tests pass; Ansible install; go-live. | 11 | 13 | 1–1,5 |
-| **R2** · R2 | Extensions | Webhooks, geo/IP, slate, automatic relocation, HA. | 10 | 11 | 3–4 |
+| **R2** · R2 | Extensions | Webhooks, geo/IP, slate, automatic relocation, HA. | 12 | 14 | 3–4 |
 | **R3** · R3 | Future | DVB-S/S2, transcoding, billing — on demand. | 5 | 10 | — |
 
 \* Effort in “sessions” (S = 0.5, M = 1, L = 2). Real pace depends mainly on testing speed: at 3–5 tickets a day S0–S6 (94 tickets) take **≈ 5–7 weeks**, matching the estimate in document 10.
@@ -276,6 +276,8 @@ flowchart LR
 | `TVR-102` | SDT/PMT rewriting | Feature | S | S | TVR-061 |
 | `TVR-103` | Control plane high availability | Infra | S | L | TVR-094 |
 | `TVR-104` | MAC lock (MAG/Enigma2) | Feature | C | M | TVR-067 |
+| `TVR-110` | Minimal license server (tvr-license) | Infra | S | L | TVR-001 |
+| `TVR-111` | License check in tvr-core and License screen | Feature | S | M | TVR-110, TVR-012, TVR-017, TVR-039, TVR-082 |
 
 ### 4.9 R3 · Future
 
@@ -308,6 +310,7 @@ flowchart LR
 | E13 | Import & settings | 4 | S3, S5 |
 | E14 | Statistics | 1 | S5 |
 | E15 | Operations | 9 | S6, R2 |
+| E16 | Licensing | 2 | R2 |
 
 ## 6. Bugs and changes
 
