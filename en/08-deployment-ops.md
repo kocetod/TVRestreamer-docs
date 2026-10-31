@@ -80,14 +80,14 @@ volumes: {pgdata: {}}
 
 ### 2.2 nginx edge — key parts
 
-> In dev (TVR-043) the edge is the `tvr-edge` container on :8000 (`TVRestreamer_Code/deploy/nginx/edge.conf.template`): `auth_request` for `/live/{slug}/index.m3u8`, answers cached for 10 s (`$request_uri|$remote_addr`), a stale allowed answer while core is down (NFR-13), 401/403 → 403 + `X-Deny-Reason`, `/pl/` to core. Segment signing (njs + `secure_link`) comes with TVR-044, routing to ingest servers with TVR-072.
+> In dev (TVR-043) the edge is the `tvr-edge` container on :8000 (`TVRestreamer_Code/deploy/nginx/edge.conf.template`): `auth_request` for `/live/{slug}/index.m3u8`, answers cached for 10 s (`$request_uri|$remote_addr`), a stale allowed answer while core is down (NFR-13), 401/403 → 403 + `X-Deny-Reason`, `/pl/` to core. Signed segments (TVR-044): njs (`deploy/nginx/njs/hls.js`) fetches the playlist from the origin and appends `?s=<signature>&e=<expires>` to every segment, where the signature is base64url(HMAC-SHA256(`TVR_SIGNING_KEY`, `"<e>|<slug>"`)) and `e` = now + `TVR_SIGN_TTL` (60 s). A segment without or with a forged signature → **403** (`X-Deny-Reason: SIGNATURE`), with an expired one → **410** (`SIGNATURE_EXPIRED`); core is not involved. The key is shared by all edges of an installation. Routing to ingest servers comes with TVR-072.
 
 ```nginx
 # Playlist authorization through core (cached)
 location ~ ^/live/(?<slug>[a-z0-9-]+)/index\.m3u8$ {
     auth_request /_auth;
     auth_request_set $sess $upstream_http_x_session_id;
-    # njs fetches the m3u8 from origin and appends ?s=<HMAC>&e=<expires> to every segment
+    # njs fetches the m3u8 from origin and appends ?s=<HMAC-SHA256>&e=<expires> to every segment
     js_content hls.signPlaylist;                  # upstream: origin_$slug_node (map slug → ingest)
 }
 location = /_auth {
@@ -101,12 +101,11 @@ location = /_auth {
     proxy_cache_key "$arg_token$slug$remote_addr";
     proxy_cache_valid 200 10s;
 }
-# Segments — secure_link only, no call to core
-location ~ ^/live/(?<slug>[a-z0-9-]+)/(?<seg>[^/]+\.ts)$ {
-    secure_link $arg_s,$arg_e;
-    secure_link_md5 "$secure_link_expires$slug$tvr_signing_secret";
-    if ($secure_link = "")  { return 403; }
-    if ($secure_link = "0") { return 410; }
+# Segments — the playlist's signature, checked locally by njs, no call to core (TVR-044)
+location ~ ^/live/(?<slug>[a-z0-9-]+)/(?<seg>seg_[0-9]+\.ts)$ {
+    set $tvr_deny $tvr_segment_access;            # js_set hls.segmentAccess: OK | SIGNATURE | SIGNATURE_EXPIRED
+    if ($tvr_deny = "SIGNATURE_EXPIRED") { return 410; }
+    if ($tvr_deny != "OK")               { return 403; }
     proxy_cache hls_cache;
     proxy_cache_valid 200 30s;
     proxy_cache_lock on;                          # 1 origin request per segment
@@ -114,7 +113,7 @@ location ~ ^/live/(?<slug>[a-z0-9-]+)/(?<seg>[^/]+\.ts)$ {
 }
 ```
 
-> Playlist signing happens on the edge (nginx njs), not in core. So if core goes down, viewing continues until the auth cache expires, and in "grace" mode for up to 1 h (NFR-13).
+> Playlist signing happens on the edge (nginx njs), not in core. Segments are checked in njs too (HMAC-SHA256) rather than with `secure_link_md5`: the built-in `secure_link` supports MD5 only. The signature lifetime is computed on the edge (`TVR_SIGN_TTL`), not taken from `X-Sign-Expires` of core — a cached or stale `/internal/auth` answer carries an old time and the segments would expire at once. So if core goes down, viewing continues until the auth cache expires, and in "grace" mode for up to 1 h (NFR-13).
 >
 > `proxy_cache_lock on` ensures that with 500 viewers on one stream, the edge fetches each segment from origin only once.
 

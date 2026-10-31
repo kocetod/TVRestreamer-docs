@@ -765,7 +765,7 @@ paths:
           description: Allowed
           headers:
             X-Subscriber-Id: {schema: {type: string, format: uuid}}
-            X-Sign-Expires: {description: 'epoch seconds; now + tvr.access.sign-ttl (60 s) — segment signature (TVR-044)', schema: {type: integer}}
+            X-Sign-Expires: {description: 'epoch seconds; now + tvr.access.sign-ttl (60 s). Informational: the edge signs segments with its own TVR_SIGN_TTL, because a cached answer carries an old time (TVR-044)', schema: {type: integer}}
         '401':
           description: No, malformed or unknown token
           headers:

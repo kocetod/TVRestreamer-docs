@@ -80,14 +80,14 @@ volumes: {pgdata: {}}
 
 ### 2.2 nginx edge — ключови части
 
-> В dev (TVR-043) edge-ът е контейнерът `tvr-edge` на :8000 (`TVRestreamer_Code/deploy/nginx/edge.conf.template`): `auth_request` за `/live/{slug}/index.m3u8`, кеш на отговорите 10 сек (`$request_uri|$remote_addr`), стар разрешен отговор при недостъпен core (NFR-13), 401/403 → 403 + `X-Deny-Reason`, `/pl/` към core. Подписването на сегментите (njs + `secure_link`) идва с TVR-044, разпределението по ingest сървъри — с TVR-072.
+> В dev (TVR-043) edge-ът е контейнерът `tvr-edge` на :8000 (`TVRestreamer_Code/deploy/nginx/edge.conf.template`): `auth_request` за `/live/{slug}/index.m3u8`, кеш на отговорите 10 сек (`$request_uri|$remote_addr`), стар разрешен отговор при недостъпен core (NFR-13), 401/403 → 403 + `X-Deny-Reason`, `/pl/` към core. Подписани сегменти (TVR-044): njs (`deploy/nginx/njs/hls.js`) взема плейлиста от origin-а и добавя към всеки сегмент `?s=<подпис>&e=<изтичане>`, където подписът е base64url(HMAC-SHA256(`TVR_SIGNING_KEY`, `"<e>|<slug>"`)) и `e` = сега + `TVR_SIGN_TTL` (60 сек). Сегмент без или с подправен подпис → **403** (`X-Deny-Reason: SIGNATURE`), с изтекъл → **410** (`SIGNATURE_EXPIRED`); core не участва. Ключът е общ за всички edge-ове на инсталацията. Разпределението по ingest сървъри — с TVR-072.
 
 ```nginx
 # Авторизация на плейлиста през core (с кеш)
 location ~ ^/live/(?<slug>[a-z0-9-]+)/index\.m3u8$ {
     auth_request /_auth;
     auth_request_set $sess $upstream_http_x_session_id;
-    # njs взема m3u8 от origin и добавя ?s=<HMAC>&e=<expires> към всеки сегмент
+    # njs взема m3u8 от origin и добавя ?s=<HMAC-SHA256>&e=<expires> към всеки сегмент
     js_content hls.signPlaylist;                  # upstream: origin_$slug_node (map slug → ingest)
 }
 location = /_auth {
@@ -101,12 +101,11 @@ location = /_auth {
     proxy_cache_key "$arg_token$slug$remote_addr";
     proxy_cache_valid 200 10s;
 }
-# Сегменти — само secure_link, без обаждане към core
-location ~ ^/live/(?<slug>[a-z0-9-]+)/(?<seg>[^/]+\.ts)$ {
-    secure_link $arg_s,$arg_e;
-    secure_link_md5 "$secure_link_expires$slug$tvr_signing_secret";
-    if ($secure_link = "")  { return 403; }
-    if ($secure_link = "0") { return 410; }
+# Сегменти — подписът от плейлиста, проверен локално от njs, без обаждане към core (TVR-044)
+location ~ ^/live/(?<slug>[a-z0-9-]+)/(?<seg>seg_[0-9]+\.ts)$ {
+    set $tvr_deny $tvr_segment_access;            # js_set hls.segmentAccess: OK | SIGNATURE | SIGNATURE_EXPIRED
+    if ($tvr_deny = "SIGNATURE_EXPIRED") { return 410; }
+    if ($tvr_deny != "OK")               { return 403; }
     proxy_cache hls_cache;
     proxy_cache_valid 200 30s;
     proxy_cache_lock on;                          # 1 заявка към origin на сегмент
@@ -114,7 +113,7 @@ location ~ ^/live/(?<slug>[a-z0-9-]+)/(?<seg>[^/]+\.ts)$ {
 }
 ```
 
-> Подписването на плейлиста става на edge (nginx njs), а не в core. Така при отпадане на core гледането продължава до изтичане на кеша на авторизацията, а с режим „grace“ — до 1 ч (NFR-13).
+> Подписването на плейлиста става на edge (nginx njs), а не в core. Проверката на сегментите също е в njs (HMAC-SHA256), а не с `secure_link_md5`: вграденият `secure_link` поддържа само MD5. Срокът на подписа се смята на edge-а (`TVR_SIGN_TTL`), не от `X-Sign-Expires` на core — кешираният или стар отговор на `/internal/auth` носи старо време и сегментите биха изтекли веднага. Така при отпадане на core гледането продължава до изтичане на кеша на авторизацията, а с режим „grace“ — до 1 ч (NFR-13).
 >
 > `proxy_cache_lock on` гарантира, че при 500 зрители на един канал edge тегли всеки сегмент от origin само веднъж.
 

@@ -249,7 +249,7 @@ data: {"reason":"token-expired"}
 | GET | `/pl/{token}.m3u?type=hls\|ts` | Personal playlist |
 | GET | `/epg/{token}.xml.gz` | Filtered XMLTV |
 | GET | `/live/{slug}/index.m3u8?token=` | HLS (authorized via `auth_request`) |
-| GET | `/live/{slug}/{segment}.ts?s=&e=` | Segment (`secure_link`) |
+| GET | `/live/{slug}/{segment}.ts?s=&e=` | Segment: signature from the playlist (HMAC-SHA256, 60 s); missing/forged → 403, expired → 410 (TVR-044) |
 | GET | `/ts/{slug}.ts?token=` | HTTP-TS |
 | GET | `/get.php?username&password&type=m3u_plus` | Xtream compatibility (R1) |
 | GET | `/player_api.php?username&password&action=` | Xtream compatibility (R1) |
@@ -264,7 +264,7 @@ data: {"reason":"token-expired"}
 | GET | `/internal/auth` | nginx `auth_request` | Input headers: `X-Original-URI` (the player's request with `?token=`), `X-Real-IP`, `X-Internal-Token` (when configured). Response `200` + `X-Subscriber-Id`, `X-Sign-Expires` / `401` / `403` + `X-Deny-Reason: TOKEN\|EXPIRED\|SUSPENDED\|BANNED\|NOT_IN_PACKAGE\|IP` (`LIMIT` — TVR-045, `GEO` — TVR-097) |
 | gRPC | `AgentControl.Connect(stream)` | tvr-agent | Bidirectional stream (see [03-architecture](03-architecture.md) §7) |
 
-> `/internal/auth` (TVR-042): token and channel come from `X-Original-URI` (`/live/{slug}/index.m3u8?token=` or `/ts/{slug}.ts?token=`); for manual checks also `?token=&slug=&ip=`. Checks in order: token (missing/unknown → 401 `TOKEN`) → status (`SUSPENDED`, `BANNED`, `EXPIRED`) → the last day has not passed (`EXPIRED`, without waiting for the nightly job) → the channel is in an **active** package of the subscriber and not deleted (`NOT_IN_PACKAGE`, TC-07) → the IP is in the allow list, if there is one (`IP`). Rights are cached in Redis `auth:<token>` for 10 s (`tvr.access.cache-ttl`), unknown tokens too (`"-"`); every change of the subscriber through the API drops the key at once, changes of packages/channels show within 10 s. `X-Sign-Expires` = now + 60 s (segment signature, TVR-044); `X-Session-Id` comes with the sessions (TVR-045). With `TVR_INTERNAL_TOKEN` a request without the matching `X-Internal-Token` gets 404. Measured in the cloud (2 cores): ~1,650 requests/s, p99 ≈ 14 ms.
+> `/internal/auth` (TVR-042): token and channel come from `X-Original-URI` (`/live/{slug}/index.m3u8?token=` or `/ts/{slug}.ts?token=`); for manual checks also `?token=&slug=&ip=`. Checks in order: token (missing/unknown → 401 `TOKEN`) → status (`SUSPENDED`, `BANNED`, `EXPIRED`) → the last day has not passed (`EXPIRED`, without waiting for the nightly job) → the channel is in an **active** package of the subscriber and not deleted (`NOT_IN_PACKAGE`, TC-07) → the IP is in the allow list, if there is one (`IP`). Rights are cached in Redis `auth:<token>` for 10 s (`tvr.access.cache-ttl`), unknown tokens too (`"-"`); every change of the subscriber through the API drops the key at once, changes of packages/channels show within 10 s. `X-Sign-Expires` = now + 60 s — informational: the edge computes the signature lifetime itself (`TVR_SIGN_TTL`), because a cached answer carries an old time (TVR-044); `X-Session-Id` comes with the sessions (TVR-045). With `TVR_INTERNAL_TOKEN` a request without the matching `X-Internal-Token` gets 404. Measured in the cloud (2 cores): ~1,650 requests/s, p99 ≈ 14 ms.
 
 ## 5. Webhooks (R2)
 

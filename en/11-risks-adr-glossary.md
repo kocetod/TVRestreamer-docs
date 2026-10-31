@@ -43,6 +43,7 @@
 - **Context:** ~375 playlist requests/s and ~1,500 segment requests/s at peak; core must not be in the hot path.
 - **Decision:** Only playlist requests go through core (10 s cache on the edge). Segments are verified locally with HMAC.
 - **Consequences:** + core handles < 400 RPS; + edge keeps working during short core outages; − access revocation is delayed by ≤ 10 s (cache) + 60 s (signature lifetime).
+- **Implementation (TVR-044):** the signature is HMAC-SHA256 in njs (created in the playlist, checked for every segment) instead of `secure_link_md5` — the built-in module supports MD5 only. The principle (local check without core) is the same.
 
 ### ADR-006 · Desired state + reconciliation between core and agent
 - **Decision:** Core sends a full snapshot with a version. The agent is idempotent.

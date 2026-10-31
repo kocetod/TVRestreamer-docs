@@ -59,7 +59,7 @@
 |---|---|---|
 | **S**poofing | Stolen admin password | 2FA for Admin, lockout after 5 attempts, admin panel only from allowed IPs/VPN |
 | **S**poofing | Sharing a subscriber link | Session limit, short-lived signed segment URLs, token regeneration, IP binding (opt.) |
-| **T**ampering | Forged segment URL | HMAC-SHA256 signature with expiry (`secure_link`) |
+| **T**ampering | Forged segment URL | HMAC-SHA256 signature with expiry (njs on the edge, TVR-044) |
 | **R**epudiation | "I didn't delete it" | Append-only audit log with diff |
 | **I**nformation disclosure | Leak of provider URLs | Source URLs never shown to subscribers; secrets encrypted in DB; Support role cannot see inputs |
 | **D**enial of service | Flooding `/internal/auth` or playlists | nginx rate limiting (`limit_req`), 10 s auth cache, fail2ban on 403 |
