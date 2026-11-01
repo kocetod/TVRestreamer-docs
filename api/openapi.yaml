@@ -337,8 +337,9 @@ paths:
       tags: [streams]
       summary: History of the channel's events, newest first (FR-FOV-07, TVR-029)
       description: |
-        FAILOVER (data.from / data.to = input ids, from_index / to_index, reason), STATUS (every change of the
-        state, data.from / data.to), and the other events the agent reports (PROCESS_EXITED, INPUT_LOST…).
+        FAILOVER (data.from / data.to = input ids, from_index / to_index, reason), RECOVERED (automatic return to a
+        higher-priority input, same data as FAILOVER, TVR-052), STATUS (every change of the state, data.from /
+        data.to), and the other events the agent reports (PROCESS_EXITED, INPUT_LOST…).
         Kept for 180 days (monthly partitions). Any admin role.
       parameters:
         - {name: type, in: query, description: 'Event types, repeated or comma-separated (e.g. FAILOVER,STATUS)', schema: {type: array, items: {type: string}}, style: form, explode: true}
@@ -1149,7 +1150,7 @@ components:
         at: {type: string, format: date-time}
     LiveStreamEvent:
       type: object
-      description: "data of `stream.failover` (type FAILOVER) and `stream.event` (TVR-030)"
+      description: "data of `stream.failover` (type FAILOVER or RECOVERED, TVR-052) and `stream.event` (TVR-030)"
       properties:
         streamId: {type: string, format: uuid}
         type: {type: string, example: FAILOVER}
@@ -1190,7 +1191,7 @@ components:
         id: {type: integer, format: int64}
         streamId: {type: string, format: uuid}
         ts: {type: string, format: date-time}
-        type: {type: string, description: 'STATUS, FAILOVER, PROCESS_EXITED, INPUT_LOST, INPUT_RESTORED, STARTED, STOPPED, ERROR…', example: FAILOVER}
+        type: {type: string, description: 'STATUS, FAILOVER, RECOVERED, PROCESS_EXITED, INPUT_LOST, INPUT_RESTORED, STARTED, STOPPED, ERROR…', example: FAILOVER}
         nodeId: {type: string, format: uuid, nullable: true}
         inputId: {type: string, format: uuid, nullable: true, description: 'The input it is about (FAILOVER: the new one)'}
         message: {type: string, nullable: true, example: 'input #1 → #2: no data for 5s'}
@@ -1252,6 +1253,14 @@ components:
             keepAudioLangs: {type: array, items: {type: string}}
             dropSubtitles: {type: boolean}
             serviceName: {type: string}
+        returnToPrimary:
+          type: boolean
+          default: true
+          description: >-
+            Return to primary (FR-FOV-05, TVR-052): after a failover the agent switches back to a higher-priority
+            input once it has delivered without a gap for returnAfterSec (cold inputs are probed every 10 s). The
+            switch is a RECOVERED event. false = the channel stays on the backup input. Ignored while pinned.
+        returnAfterSec: {type: integer, minimum: 5, maximum: 3600, default: 30, description: 'Seconds of stability before the return'}
         inputs:
           type: array
           minItems: 1

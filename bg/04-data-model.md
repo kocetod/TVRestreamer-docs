@@ -45,6 +45,8 @@ erDiagram
         bool enabled
         string mode "ALWAYS_ON|ON_DEMAND"
         jsonb processing
+        bool return_to_primary
+        int return_after_sec
         int version
         timestamptz deleted_at
     }
@@ -190,13 +192,14 @@ erDiagram
 |---|---|
 | `stream` | `version` се увеличава при всяка промяна и се изпраща към агента (desired state). `deleted_at` е за меко изтриване (BR-02). Индекси: `slug` (unique), `node_id`, `enabled`. |
 | `stream_input.options` | JSON по типа, например `{"headers":{"User-Agent":"..."}, "iface":"eth1", "ssm_source":"10.0.0.1", "srt":{"mode":"caller","latency":200,"passphrase":"***"}, "analyzeduration":1.5}` (`analyzeduration` — секунди за разпознаване на входа, 0,5–30, по подразбиране 1,5; TVR-021). Тайните се шифрират (AES-GCM, ключ от env). |
+| `stream.return_to_primary`, `return_after_sec` | Връщане към основния вход (FR-FOV-05, V8, TVR-052): по подразбиране `true` и 30 сек (5..3600). |
 | `stream.processing` | `{"pnr":101, "audio":{"keep_langs":["bul","eng"]}, "drop_subtitles":true, "service_name":"BTV HD"}` |
 | `stream_output.options` | HLS: `{"segment_sec":4, "list_size":6}`; UDP: `{"addr":"239.1.1.10","port":1234,"ttl":4,"iface":"eth1"}` |
 | `subscriber.token` | 32 символа base62, генерира се с `SecureRandom`. Индекс unique. |
 | `subscriber.expires_at` | Последен ден на достъп (Europe/Sofia); `NULL` = без изтичане. Частичен индекс за нощната задача (само `ACTIVE` с дата, BR-01). `password_hash` е по избор (Argon2id) — само за Xtream-подобен достъп. |
 | `device.fingerprint` | Hash на device ID, ако плейърът праща такъв, иначе на user-agent + IP. Уникален за абоната (BR-06). |
 | `session_history` | Партициониране по месец (`PARTITION BY RANGE (started_at)`), съхранение 90 дни. |
-| `stream_event` | Партициониране по месец (UTC, `stream_event_YYYY_MM`, функция `tvr_stream_event_partition`), съхранение 180 дни: всяка нощ се създава следващият месец и се трият целите месеци, изтекли преди 180 дни (TVR-029). `STATUS` = смяна на състоянието (`data.from`/`to`); `FAILOVER` = смяна на входа (`data.from`/`to` — id на входове, `reason`). Индекси: `(stream_id, ts)` за историята на канал и `(ts DESC)` за последните събития на таблото (V4, TVR-034). |
+| `stream_event` | Партициониране по месец (UTC, `stream_event_YYYY_MM`, функция `tvr_stream_event_partition`), съхранение 180 дни: всяка нощ се създава следващият месец и се трият целите месеци, изтекли преди 180 дни (TVR-029). `STATUS` = смяна на състоянието (`data.from`/`to`); `FAILOVER` = смяна на входа (`data.from`/`to` — id на входове, `reason`); `RECOVERED` = автоматично връщане на вход с по-висок приоритет (същите данни, TVR-052). Индекси: `(stream_id, ts)` за историята на канал и `(ts DESC)` за последните събития на таблото (V4, TVR-034). |
 | `audit_log` | Append-only, съхранение 1 година (V6, TVR-040). `actor_email` пази имейла на администратора към момента на промяната (`actor_id` става `NULL` при изтрит администратор); `NULL` = системата. `diff` = какво се е променило (`{поле: {from, to}}`), никога тайни (пароли, токени). Индекси: `(entity_type, entity_id, ts DESC)` за историята на обект и `(ts DESC)` за екрана „Одит“ (TVR-074). Засега пишат само промените по абонати. |
 | `stream_logo` | Качено лого на канала (V7, TVR-047), сервира се на `/logos/{stream_id}.{png\|svg}?v=<sha256[0..8]>`; `stream.logo_url` пази този път или външен `http(s)` адрес. Запис с друг адрес трие каченото лого. |
 

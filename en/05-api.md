@@ -66,6 +66,8 @@ POST /api/v1/streams
   "mode": "ALWAYS_ON",
   "enabled": true,
   "epgId": "btv.bg",
+  "returnToPrimary": true,
+  "returnAfterSec": 30,
   "inputs": [
     {"priority": 1, "type": "HTTP_TS", "url": "http://provider-a/btv.ts", "timeoutSec": 5, "hotStandby": false},
     {"priority": 2, "type": "UDP", "url": "udp://239.10.0.3:1234", "options": {"iface": "eth1"}, "hotStandby": true}
@@ -239,7 +241,7 @@ data: {"reason":"token-expired"}
 |---|---|---|
 | `ready` | right after connecting | `at`, `until` (when the stream will end), `types` |
 | `stream.status` | every report of the agent (≈ 5 s and on change) and Stop through the API | `streamId, state, previousState, changed, activeInputId, bitrateIn, since, lastError, nodeId, at`; `changed` = new state or input |
-| `stream.failover` | the agent switched the input | `streamId, type: FAILOVER, nodeId, inputId, message, data{from, to, from_index, to_index, reason}, at` |
+| `stream.failover` | the agent switched the input (`FAILOVER`) or went back to the primary one (`RECOVERED`, TVR-052) | `streamId, type: FAILOVER\|RECOVERED, nodeId, inputId, message, data{from, to, from_index, to_index, reason}, at` |
 | `stream.event` | any other agent event (`PROCESS_EXITED` …) | like `stream.failover` |
 | `node.status` | a server went ONLINE / OFFLINE | `nodeId, name, status, lastSeenAt, at` |
 | `node.metrics` | metrics of the agent every 5 s (TVR-035); `cpuPercent` −1 = not measured yet | `nodeId, at, cpuPercent, memUsedBytes, memTotalBytes, netRxBps, netTxBps, tmpfsFreeBytes, tmpfsTotalBytes, streamsRunning, processes, loadAvg1m, cpuCores` |

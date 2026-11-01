@@ -66,6 +66,8 @@ POST /api/v1/streams
   "mode": "ALWAYS_ON",
   "enabled": true,
   "epgId": "btv.bg",
+  "returnToPrimary": true,
+  "returnAfterSec": 30,
   "inputs": [
     {"priority": 1, "type": "HTTP_TS", "url": "http://provider-a/btv.ts", "timeoutSec": 5, "hotStandby": false},
     {"priority": 2, "type": "UDP", "url": "udp://239.10.0.3:1234", "options": {"iface": "eth1"}, "hotStandby": true}
@@ -239,7 +241,7 @@ data: {"reason":"token-expired"}
 |---|---|---|
 | `ready` | веднага след свързване | `at`, `until` (кога потокът ще свърши), `types` |
 | `stream.status` | всеки отчет на агента (≈ 5 сек и при промяна) и Stop през API | `streamId, state, previousState, changed, activeInputId, bitrateIn, since, lastError, nodeId, at`; `changed` = ново състояние или вход |
-| `stream.failover` | агентът смени входа | `streamId, type: FAILOVER, nodeId, inputId, message, data{from, to, from_index, to_index, reason}, at` |
+| `stream.failover` | агентът смени входа (`FAILOVER`) или се върна на основния (`RECOVERED`, TVR-052) | `streamId, type: FAILOVER\|RECOVERED, nodeId, inputId, message, data{from, to, from_index, to_index, reason}, at` |
 | `stream.event` | друго събитие на агента (`PROCESS_EXITED` …) | като `stream.failover` |
 | `node.status` | сървър стана ONLINE / OFFLINE | `nodeId, name, status, lastSeenAt, at` |
 | `node.metrics` | метрики от агента на 5 сек (TVR-035); `cpuPercent` −1 = още не е измерено | `nodeId, at, cpuPercent, memUsedBytes, memTotalBytes, netRxBps, netTxBps, tmpfsFreeBytes, tmpfsTotalBytes, streamsRunning, processes, loadAvg1m, cpuCores` |
