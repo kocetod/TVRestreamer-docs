@@ -19,5 +19,7 @@ Kept in the main repo:
 - `release-notes/` — release notes
 - `index.html` — portal, generated with `python3 tools/build_docs_site.py`
 - `bg|en/12-development-plan.md` is generated with `python3 Context/plan/build_plan_doc.py`
+- pip install markdown
+- python3 tools/build_docs_site.py
 
 Contributing: see [CONTRIBUTING.md §5](https://github.com/kocetod/TVRestreamer/blob/main/CONTRIBUTING.md) in the main repo.
