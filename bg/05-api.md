@@ -68,6 +68,8 @@ POST /api/v1/streams
   "epgId": "btv.bg",
   "returnToPrimary": true,
   "returnAfterSec": 30,
+  "failoverTriggers": {"ccErrorsPerMin": 100, "minBitrateKbps": 300, "onNoVideo": true, "onNoAudio": true,
+                       "onScrambled": true, "holdSec": 5},
   "inputs": [
     {"priority": 1, "type": "HTTP_TS", "url": "http://provider-a/btv.ts", "timeoutSec": 5, "hotStandby": false},
     {"priority": 2, "type": "UDP", "url": "udp://239.10.0.3:1234", "options": {"iface": "eth1"}, "hotStandby": true}
@@ -117,13 +119,16 @@ GET /api/v1/streams/5b7d…/analyzer
   "windowMs": 5081,
   "services": [{"serviceId": 1, "name": "TVR test A", "provider": "TvRestream", "type": 1, "pmtPid": 4096, "pcrPid": 256,
                 "scrambled": false}],
-  "totals": {"packets": 129377, "ccErrors": 5, "transportErrors": 0, "syncLosses": 0, "psiErrors": 0}
+  "totals": {"packets": 129377, "ccErrors": 5, "transportErrors": 0, "syncLosses": 0, "psiErrors": 0, "sourceErrors": 0},
+  "sourceErrorsPerMin": 0
 }
 ```
 
 > TsSwitcher на агента анализира активния вход: битрейт на целия TS и на всеки PID (средно за 5 сек), кодеци и езици от PMT, CC грешки, scrambling. Идва със статуса на канала (на 5 сек) и се пази в Redis 30 сек. `at: null` (и празни `pids`) = няма данни: каналът е спрян, още тръгва или агентът не докладва. 404 за непознат канал.
 >
 > TVR-053 добавя: `services` — програмите от PAT с име, доставчик и тип от SDT (входът HTTP-TS/UDP запазва имената на източника през ремукса); за всеки PID `ccErrorsTotal` (от старта на активния вход), `serviceId`, `streamType` и `pcr` за PCR PID-овете — интервал (над 40 ms = repetition error), скокове без discontinuity_indicator, jitter на пристигане, дрейф в ppm (`null` първите 60 сек), както в ETSI TR 101 290; `totals` — пакети, CC, транспортни грешки, загуби на синхрон и PSI/SI грешки от старта на входа; `windowMs` — прозорецът на измерването.
+>
+> TVR-054 добавя: `sourceErrorsPerMin` и `totals.sourceErrors` — повредените пакети, които входният FFmpeg намира при източника (`Packet corrupt`). Ремуксът крие CC загубите при източника от броячите на анализатора, затова те се броят отделно; заедно с `ccErrorsPerMin` са условието на тригера `failoverTriggers.ccErrorsPerMin`.
 
 **Лог на канала (TVR-023):**
 

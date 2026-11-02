@@ -47,6 +47,12 @@ erDiagram
         jsonb processing
         bool return_to_primary
         int return_after_sec
+        int failover_cc_errors_per_min
+        int failover_min_bitrate_kbps
+        bool failover_on_no_video
+        bool failover_on_no_audio
+        bool failover_on_scrambled
+        int failover_hold_sec
         int version
         timestamptz deleted_at
     }
@@ -193,13 +199,14 @@ erDiagram
 | `stream` | `version` increments on every change and is sent to the agent (desired state). `deleted_at` enables soft delete (BR-02). Indexes: `slug` (unique), `node_id`, `enabled`. |
 | `stream_input.options` | Type-specific JSON, e.g. `{"headers":{"User-Agent":"..."}, "iface":"eth1", "ssm_source":"10.0.0.1", "srt":{"mode":"caller","latency":200,"passphrase":"***"}, "analyzeduration":1.5}` (`analyzeduration` — seconds FFmpeg probes the input, 0.5–30, default 1.5; TVR-021). Secrets are encrypted (AES-GCM, key from env). |
 | `stream.return_to_primary`, `return_after_sec` | Return to primary (FR-FOV-05, V8, TVR-052): `true` and 30 s by default (5..3600). |
+| `stream.failover_*` | Failover triggers besides missing data (FR-FOV-04, V9, TVR-054): `failover_cc_errors_per_min` and `failover_min_bitrate_kbps` (0 = off, up to 1,000,000), `failover_on_no_video` / `_no_audio` / `_scrambled` (`true` by default), `failover_hold_sec` (1..300, 5 by default) — how long the problem must last. |
 | `stream.processing` | `{"pnr":101, "audio":{"keep_langs":["bul","eng"]}, "drop_subtitles":true, "service_name":"BTV HD"}` |
 | `stream_output.options` | HLS: `{"segment_sec":4, "list_size":6}`; UDP: `{"addr":"239.1.1.10","port":1234,"ttl":4,"iface":"eth1"}` |
 | `subscriber.token` | 32-character base62, generated with `SecureRandom`. Unique index. |
 | `subscriber.expires_at` | Last day of access (Europe/Sofia); `NULL` = never expires. Partial index for the nightly job (only `ACTIVE` with a date, BR-01). `password_hash` is optional (Argon2id) — only for Xtream-like access. |
 | `device.fingerprint` | Hash of the device ID if the player sends one, otherwise of user agent + IP. Unique per subscriber (BR-06). |
 | `session_history` | Monthly partitioning (`PARTITION BY RANGE (started_at)`), 90-day retention. |
-| `stream_event` | Monthly partitioning (UTC, `stream_event_YYYY_MM`, function `tvr_stream_event_partition`), 180-day retention: every night next month is created and whole months that ended more than 180 days ago are dropped (TVR-029). `STATUS` = state change (`data.from`/`to`); `FAILOVER` = input switch (`data.from`/`to` — input ids, `reason`); `RECOVERED` = automatic return to a higher-priority input (same data, TVR-052). Indexes: `(stream_id, ts)` for a channel's history and `(ts DESC)` for the dashboard's latest events (V4, TVR-034). |
+| `stream_event` | Monthly partitioning (UTC, `stream_event_YYYY_MM`, function `tvr_stream_event_partition`), 180-day retention: every night next month is created and whole months that ended more than 180 days ago are dropped (TVR-029). `STATUS` = state change (`data.from`/`to`); `FAILOVER` = input switch (`data.from`/`to` — input ids, `reason`); `RECOVERED` = automatic return to a higher-priority input (same data, TVR-052); `data.trigger` of an automatic `FAILOVER` = what broke the old input (`NO_DATA`, `CC_ERRORS`, `LOW_BITRATE`, `NO_VIDEO`, `NO_AUDIO`, `SCRAMBLED`; TVR-054). Indexes: `(stream_id, ts)` for a channel's history and `(ts DESC)` for the dashboard's latest events (V4, TVR-034). |
 | `audit_log` | Append-only, 1-year retention (V6, TVR-040). `actor_email` keeps the admin's e-mail at the time of the change (`actor_id` becomes `NULL` when the admin is deleted); `NULL` = the system. `diff` = what changed (`{field: {from, to}}`), never secrets (passwords, tokens). Indexes: `(entity_type, entity_id, ts DESC)` for an object's history and `(ts DESC)` for the Audit screen (TVR-074). For now only subscriber changes are written. |
 | `stream_logo` | Uploaded channel logo (V7, TVR-047), served at `/logos/{stream_id}.{png\|svg}?v=<sha256[0..8]>`; `stream.logo_url` holds that path or an external `http(s)` address. Saving another address drops the uploaded logo. |
 
