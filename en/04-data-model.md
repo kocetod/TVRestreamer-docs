@@ -17,6 +17,7 @@ erDiagram
     SUBSCRIBER ||--o{ DEVICE : "has"
     SUBSCRIBER ||--o{ SESSION_HISTORY : ""
     STREAM ||--o{ STREAM_EVENT : ""
+    STREAM ||--o{ STREAM_METRIC : ""
     STREAM ||--o{ SESSION_HISTORY : ""
     ADMIN_USER ||--o{ AUDIT_LOG : "performs"
     ADMIN_USER ||--o{ API_KEY : "owns"
@@ -142,6 +143,19 @@ erDiagram
         string message
         jsonb data
     }
+    STREAM_METRIC {
+        uuid stream_id PK
+        timestamptz ts PK
+        smallint samples
+        bigint bitrate_avg
+        bigint bitrate_min
+        bigint bitrate_max
+        int cc_errors
+        int source_errors
+        int viewers
+        string state
+        uuid active_input_id
+    }
     ADMIN_USER {
         uuid id PK
         string email UK
@@ -207,6 +221,7 @@ erDiagram
 | `device.fingerprint` | Hash of the device ID if the player sends one, otherwise of user agent + IP. Unique per subscriber (BR-06). |
 | `session_history` | Monthly partitioning (`PARTITION BY RANGE (started_at)`), 90-day retention. |
 | `stream_event` | Monthly partitioning (UTC, `stream_event_YYYY_MM`, function `tvr_stream_event_partition`), 180-day retention: every night next month is created and whole months that ended more than 180 days ago are dropped (TVR-029). `STATUS` = state change (`data.from`/`to`); `FAILOVER` = input switch (`data.from`/`to` — input ids, `reason`); `RECOVERED` = automatic return to a higher-priority input (same data, TVR-052); `data.trigger` of an automatic `FAILOVER` = what broke the old input (`NO_DATA`, `CC_ERRORS`, `LOW_BITRATE`, `NO_VIDEO`, `NO_AUDIO`, `SCRAMBLED`; TVR-054). Indexes: `(stream_id, ts)` for a channel's history and `(ts DESC)` for the dashboard's latest events (V4, TVR-034). |
+| `stream_metric` | Per-minute metrics for the 24 h charts (FR-ANL-07, V10, TVR-055): one row per channel and minute from the agent's reports (every 5 s) — bitrate avg/min/max (NULL = no data), CC and source errors per minute (average), viewers at the end of the minute, the worst state (`ERROR` > `OFFLINE` > `DEGRADED` > `STARTING` > `ONLINE`), the active input. A minute without a report has no row (a gap in the chart). Kept for `tvr.metrics.retention` (48 h) — older rows are deleted every hour (index `(ts)`). |
 | `audit_log` | Append-only, 1-year retention (V6, TVR-040). `actor_email` keeps the admin's e-mail at the time of the change (`actor_id` becomes `NULL` when the admin is deleted); `NULL` = the system. `diff` = what changed (`{field: {from, to}}`), never secrets (passwords, tokens). Indexes: `(entity_type, entity_id, ts DESC)` for an object's history and `(ts DESC)` for the Audit screen (TVR-074). For now only subscriber changes are written. |
 | `stream_logo` | Uploaded channel logo (V7, TVR-047), served at `/logos/{stream_id}.{png\|svg}?v=<sha256[0..8]>`; `stream.logo_url` holds that path or an external `http(s)` address. Saving another address drops the uploaded logo. |
 
@@ -218,6 +233,7 @@ erDiagram
 | `sess:start:{subscriberId}` | ZSET | 60 s | `sessionKey → start (ms)`; `KICK_OLDEST` closes the oldest |
 | `sess:info:{subscriberId}` | HASH | 60 s | `sessionKey → JSON(stream, ip, ua)` — for the session list (FR-SES-01) |
 | `sess:kicked:{sessionKey}` | STRING | 2 min | A device closed by `KICK_OLDEST` — refused (`LIMIT`) so it does not kick the new one |
+| `view:{slug}` | ZSET | 60 s | `sessionKey → last request (ms)` — the devices watching the channel (viewers in the charts, TVR-055); a device that zaps moves, those of the last 30 s count |
 | `auth:{token}` | STRING (JSON) | 10 s | Cached subscriber rights: `{subscriberId, status, expiresAt, slugs, allowedIps, maxConnections, limitPolicy}`; `"-"` = unknown token (TVR-042). Dropped on every change of the subscriber |
 | `stream:status:{id}` | STRING (JSON) | 30 s | Last status from the agent: state, activeInputId, bitrateIn, since, lastError, nodeId, at (TVR-020) |
 | `node:metrics:{id}` | STRING (JSON) | 30 s | Last metrics of the server (the agent sends them every 5 s): CPU, RAM, network, work dir disk, processes, load (TVR-035); same as `node.metrics` |

@@ -42,7 +42,7 @@
 | POST | `/streams/{id}/actions/switch-input` | `{inputId, pin: bool}` — pin спира автоматиката; активният вход с pin=false = откачане; статусът: `status.inputPinned` (TVR-036) | Operator+ |
 | POST | `/streams/{id}/clone` | Клониране | Operator+ |
 | GET | `/streams/{id}/analyzer` | Битрейт, услуги (имена от SDT), PID-ове с кодеци и езици, CC грешки по PID, PCR проверки (на живо, на 5 сек; TVR-026, TVR-053) | Viewer+ |
-| GET | `/streams/{id}/metrics?from&to&step` | Времеви редове (битрейт, CC, зрители) | Viewer+ |
+| GET | `/streams/{id}/metrics?from&to&step` | Времеви редове за графиките (TVR-055): битрейт ср./мин./макс., CC и грешки при източника на минута, зрители, най-лошо състояние и активен вход на стъпка + превключванията (`FAILOVER`/`RECOVERED`). По подразбиране последните 24 ч на 1 мин; `step` 60/300/900/3600 (без него — най-малката с ≤ 1440 точки), период ≤ 31 дни, данните се пазят 48 ч. Стъпка без данни има само `at` | Viewer+ |
 | GET | `/streams/{id}/events` | История на събитията, най-новите първо: `FAILOVER`, `STATUS`, … Филтри `type` (няколко), `from`, `to` (ISO-8601), `page`, `size` | Viewer+ |
 | GET | `/streams/{id}/logs?tail=500` | Последни редове лог от агента (1–1000, TVR-023; SSE `/logs/stream` — по-късно) | Operator+ |
 | PUT | `/streams/{id}/logo` | Качване на лого (multipart `file`, PNG/SVG ≤ 512 KB, TVR-047) → `{logoUrl}`; записва се в `logoUrl` с канала | Operator+ |
@@ -129,6 +129,25 @@ GET /api/v1/streams/5b7d…/analyzer
 > TVR-053 добавя: `services` — програмите от PAT с име, доставчик и тип от SDT (входът HTTP-TS/UDP запазва имената на източника през ремукса); за всеки PID `ccErrorsTotal` (от старта на активния вход), `serviceId`, `streamType` и `pcr` за PCR PID-овете — интервал (над 40 ms = repetition error), скокове без discontinuity_indicator, jitter на пристигане, дрейф в ppm (`null` първите 60 сек), както в ETSI TR 101 290; `totals` — пакети, CC, транспортни грешки, загуби на синхрон и PSI/SI грешки от старта на входа; `windowMs` — прозорецът на измерването.
 >
 > TVR-054 добавя: `sourceErrorsPerMin` и `totals.sourceErrors` — повредените пакети, които входният FFmpeg намира при източника (`Packet corrupt`). Ремуксът крие CC загубите при източника от броячите на анализатора, затова те се броят отделно; заедно с `ccErrorsPerMin` са условието на тригера `failoverTriggers.ccErrorsPerMin`.
+
+**Графики за 24 ч (TVR-055):**
+
+```json
+GET /api/v1/streams/{id}/metrics?from=2026-11-01T12:00:00Z&to=2026-11-02T12:00:00Z
+{
+  "streamId": "5b7d…", "from": "2026-11-01T12:00:00Z", "to": "2026-11-02T12:00:00Z", "step": 60,
+  "points": [
+    {"at": "2026-11-02T11:58:00Z", "bitrateAvg": 2247304, "bitrateMin": 2101000, "bitrateMax": 2390000,
+     "ccErrors": 0, "sourceErrors": 0, "viewers": 3, "state": "ONLINE", "inputPriority": 1},
+    {"at": "2026-11-02T11:59:00Z", "bitrateAvg": null, "bitrateMin": null, "bitrateMax": null, "ccErrors": null,
+     "sourceErrors": null, "viewers": null, "state": null, "inputPriority": null}
+  ],
+  "switches": [{"at": "2026-11-02T11:57:12Z", "type": "FAILOVER", "from": 1, "to": 2,
+                "reason": "CC errors 527/min (limit 100)", "trigger": "CC_ERRORS"}]
+}
+```
+
+> Точките са плътни — от `from` (подравнено на стъпката) до `to`; стъпка без данни (каналът е спрян или core не е получил отчет) е прекъсване в графиката. `ccErrors`/`sourceErrors` — средно на минута; `viewers` — най-много устройства в стъпката (сесиите от последните 30 сек, TVR-045); `state` — най-лошото; `inputPriority` — входът в края на стъпката.
 
 **Лог на канала (TVR-023):**
 

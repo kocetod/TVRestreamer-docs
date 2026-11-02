@@ -42,7 +42,7 @@
 | POST | `/streams/{id}/actions/switch-input` | `{inputId, pin: bool}` — pin suspends the automation; the active input with pin=false = unpin; the status shows `status.inputPinned` (TVR-036) | Operator+ |
 | POST | `/streams/{id}/clone` | Clone | Operator+ |
 | GET | `/streams/{id}/analyzer` | Bitrate, services (SDT names), PIDs with codecs and languages, CC errors per PID, PCR checks (live, every 5 s; TVR-026, TVR-053) | Viewer+ |
-| GET | `/streams/{id}/metrics?from&to&step` | Time series (bitrate, CC, viewers) | Viewer+ |
+| GET | `/streams/{id}/metrics?from&to&step` | Time series for the charts (TVR-055): bitrate avg/min/max, CC and source errors per minute, viewers, worst state and active input per step + the switches (`FAILOVER`/`RECOVERED`). Defaults: the last 24 h in 1-minute steps; `step` 60/300/900/3600 (without it the smallest giving ≤ 1440 points), range ≤ 31 days, data kept 48 h. A step without data has only `at` | Viewer+ |
 | GET | `/streams/{id}/events` | Event history, newest first: `FAILOVER`, `STATUS`, … Filters `type` (several), `from`, `to` (ISO-8601), `page`, `size` | Viewer+ |
 | GET | `/streams/{id}/logs?tail=500` | Last log lines from the agent (1–1000, TVR-023; SSE `/logs/stream` later) | Operator+ |
 | PUT | `/streams/{id}/logo` | Upload a logo (multipart `file`, PNG/SVG ≤ 512 KB, TVR-047) → `{logoUrl}`; saved into `logoUrl` with the channel | Operator+ |
@@ -129,6 +129,25 @@ GET /api/v1/streams/5b7d…/analyzer
 > TVR-053 adds: `services` — the programs of the PAT with name, provider and type from the SDT (the HTTP-TS/UDP input keeps the source's names through the remux); per PID `ccErrorsTotal` (since the active input started), `serviceId`, `streamType` and `pcr` on PCR PIDs — interval (over 40 ms = repetition error), jumps without discontinuity_indicator, arrival jitter, drift in ppm (`null` for the first 60 s), as in ETSI TR 101 290; `totals` — packets, CC, transport errors, sync losses and PSI/SI errors since the input started; `windowMs` — the measurement window.
 >
 > TVR-054 adds: `sourceErrorsPerMin` and `totals.sourceErrors` — the corrupt packets the input FFmpeg finds in the source (`Packet corrupt`). The remux hides the source's CC gaps from the analyzer's counters, so they are counted separately; together with `ccErrorsPerMin` they are the condition of the `failoverTriggers.ccErrorsPerMin` trigger.
+
+**24 h charts (TVR-055):**
+
+```json
+GET /api/v1/streams/{id}/metrics?from=2026-11-01T12:00:00Z&to=2026-11-02T12:00:00Z
+{
+  "streamId": "5b7d…", "from": "2026-11-01T12:00:00Z", "to": "2026-11-02T12:00:00Z", "step": 60,
+  "points": [
+    {"at": "2026-11-02T11:58:00Z", "bitrateAvg": 2247304, "bitrateMin": 2101000, "bitrateMax": 2390000,
+     "ccErrors": 0, "sourceErrors": 0, "viewers": 3, "state": "ONLINE", "inputPriority": 1},
+    {"at": "2026-11-02T11:59:00Z", "bitrateAvg": null, "bitrateMin": null, "bitrateMax": null, "ccErrors": null,
+     "sourceErrors": null, "viewers": null, "state": null, "inputPriority": null}
+  ],
+  "switches": [{"at": "2026-11-02T11:57:12Z", "type": "FAILOVER", "from": 1, "to": 2,
+                "reason": "CC errors 527/min (limit 100)", "trigger": "CC_ERRORS"}]
+}
+```
+
+> The points are dense — from `from` (aligned to the step) to `to`; a step without data (channel stopped or no report reached core) is a gap in the chart. `ccErrors`/`sourceErrors` — average per minute; `viewers` — the most devices in the step (sessions of the last 30 s, TVR-045); `state` — the worst; `inputPriority` — the input at the end of the step.
 
 **Channel log (TVR-023):**
 
