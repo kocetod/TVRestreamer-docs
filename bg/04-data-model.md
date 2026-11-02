@@ -17,6 +17,7 @@ erDiagram
     SUBSCRIBER ||--o{ DEVICE : "има"
     SUBSCRIBER ||--o{ SESSION_HISTORY : ""
     STREAM ||--o{ STREAM_EVENT : ""
+    STREAM ||--o{ STREAM_METRIC : ""
     STREAM ||--o{ SESSION_HISTORY : ""
     ADMIN_USER ||--o{ AUDIT_LOG : "прави"
     ADMIN_USER ||--o{ API_KEY : "притежава"
@@ -142,6 +143,19 @@ erDiagram
         string message
         jsonb data
     }
+    STREAM_METRIC {
+        uuid stream_id PK
+        timestamptz ts PK
+        smallint samples
+        bigint bitrate_avg
+        bigint bitrate_min
+        bigint bitrate_max
+        int cc_errors
+        int source_errors
+        int viewers
+        string state
+        uuid active_input_id
+    }
     ADMIN_USER {
         uuid id PK
         string email UK
@@ -207,6 +221,7 @@ erDiagram
 | `device.fingerprint` | Hash на device ID, ако плейърът праща такъв, иначе на user-agent + IP. Уникален за абоната (BR-06). |
 | `session_history` | Партициониране по месец (`PARTITION BY RANGE (started_at)`), съхранение 90 дни. |
 | `stream_event` | Партициониране по месец (UTC, `stream_event_YYYY_MM`, функция `tvr_stream_event_partition`), съхранение 180 дни: всяка нощ се създава следващият месец и се трият целите месеци, изтекли преди 180 дни (TVR-029). `STATUS` = смяна на състоянието (`data.from`/`to`); `FAILOVER` = смяна на входа (`data.from`/`to` — id на входове, `reason`); `RECOVERED` = автоматично връщане на вход с по-висок приоритет (същите данни, TVR-052); `data.trigger` на автоматичен `FAILOVER` = какво е развалило стария вход (`NO_DATA`, `CC_ERRORS`, `LOW_BITRATE`, `NO_VIDEO`, `NO_AUDIO`, `SCRAMBLED`; TVR-054). Индекси: `(stream_id, ts)` за историята на канал и `(ts DESC)` за последните събития на таблото (V4, TVR-034). |
+| `stream_metric` | Метрики на минута за графиките за 24 ч (FR-ANL-07, V10, TVR-055): един ред на канал и минута от отчетите на агента (на 5 сек) — битрейт ср./мин./макс. (NULL = няма данни), CC и грешки при източника на минута (средно), зрители в края на минутата, най-лошото състояние (`ERROR` > `OFFLINE` > `DEGRADED` > `STARTING` > `ONLINE`), активният вход. Минута без отчет няма ред (прекъсване в графиката). Пазят се `tvr.metrics.retention` (48 ч) — на всеки час се трият по-старите (индекс `(ts)`). |
 | `audit_log` | Append-only, съхранение 1 година (V6, TVR-040). `actor_email` пази имейла на администратора към момента на промяната (`actor_id` става `NULL` при изтрит администратор); `NULL` = системата. `diff` = какво се е променило (`{поле: {from, to}}`), никога тайни (пароли, токени). Индекси: `(entity_type, entity_id, ts DESC)` за историята на обект и `(ts DESC)` за екрана „Одит“ (TVR-074). Засега пишат само промените по абонати. |
 | `stream_logo` | Качено лого на канала (V7, TVR-047), сервира се на `/logos/{stream_id}.{png\|svg}?v=<sha256[0..8]>`; `stream.logo_url` пази този път или външен `http(s)` адрес. Запис с друг адрес трие каченото лого. |
 
@@ -218,6 +233,7 @@ erDiagram
 | `sess:start:{subscriberId}` | ZSET | 60 сек | `sessionKey → начало (ms)`; `KICK_OLDEST` затваря най-старото |
 | `sess:info:{subscriberId}` | HASH | 60 сек | `sessionKey → JSON(stream, ip, ua)` — за списъка със сесии (FR-SES-01) |
 | `sess:kicked:{sessionKey}` | STRING | 2 мин | Затворено от `KICK_OLDEST` устройство — отказва се (`LIMIT`), за да не изгони новото |
+| `view:{slug}` | ZSET | 60 сек | `sessionKey → последна заявка (ms)` — устройствата, които гледат канала (зрители в графиките, TVR-055); при смяна на канала устройството се мести, броят се тези от последните 30 сек |
 | `auth:{token}` | STRING (JSON) | 10 сек | Кеш на правата на абоната: `{subscriberId, status, expiresAt, slugs, allowedIps, maxConnections, limitPolicy}`; `"-"` = непознат токен (TVR-042). Трие се при всяка промяна по абоната |
 | `stream:status:{id}` | STRING (JSON) | 30 сек | Последен статус от агента: state, activeInputId, bitrateIn, since, lastError, nodeId, at (TVR-020) |
 | `node:metrics:{id}` | STRING (JSON) | 30 сек | Последни метрики на сървъра (агентът ги праща на 5 сек): CPU, RAM, мрежа, диск на work dir, процеси, load (TVR-035); същото като `node.metrics` |
