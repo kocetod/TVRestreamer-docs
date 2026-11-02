@@ -74,7 +74,7 @@ stateDiagram-v2
 | **S2** · MVP | Failover and admin UI | The stream switches to a backup input on its own; streams are managed in the web panel. | 13 | 16 | 1–1,5 |
 | **S3** · MVP | Subscribers and protected playback | A subscriber watches via a personal M3U link; a device over the limit is refused. | 14 | 13.5 | 1–1,5 |
 | **S4** · R1 | Astra-level streaming | Hot standby < 3 s, full analyzer, all inputs and outputs. | 18 | 20 | 1,5 |
-| **S5** · R1 | Operator-ready | Sessions, alerts, multiple servers, 2FA, audit, Xtream API, statistics. | 18 | 18 | 1,5–2 |
+| **S5** · R1 | Operator-ready | Sessions, alerts, multiple servers, 2FA, audit, Xtream API, statistics. | 18 | 19 | 1,5–2 |
 | **S6** · R1 | Production | Load and chaos tests pass; Ansible install; go-live. | 11 | 13 | 1–1,5 |
 | **R2** · R2 | Extensions | Webhooks, geo/IP, slate, automatic relocation, HA. | 12 | 14 | 3–4 |
 | **R3** · R3 | Future | DVB-S/S2, transcoding, billing — on demand. | 5 | 10 | — |
@@ -242,7 +242,7 @@ flowchart LR
 | `TVR-079` | Full configuration export and import | Feature | S | S | TVR-038 |
 | `TVR-080` | Statistics and reports | Feature | S | M | TVR-066 |
 | `TVR-081` | Prometheus metrics | Feature | S | S | TVR-017 |
-| `TVR-082` | UI: Settings | Feature | M | M | TVR-068 |
+| `TVR-082` | Settings: every stream and network parameter in the panel | Feature | M | L | TVR-068, TVR-113, TVR-114 |
 | `TVR-083` | Subscriber CSV import/export and bulk extend | Feature | S | S | TVR-040 |
 
 ### 4.7 S6 · Production
