@@ -1,6 +1,6 @@
 # 05 · API Specification
 
-[← Index](00-README.md) · [Български](../bg/05-api.md) · Machine-readable contract: [openapi.yaml](../api/openapi.yaml)
+[← Index](00-README.md) · [Български](../bg/05-api.md) · Machine-readable contract: [openapi.yaml](https://github.com/kocetod/TVRestreamer/blob/main/TVRestreamer_Code/api/openapi.yaml)
 
 ## 1. General rules
 

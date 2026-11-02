@@ -17,7 +17,7 @@
 | 02 | [Функционална спецификация](02-functional-spec.md) | PM, Dev, QA | Всички модули и фийчъри с ID, user stories, критерии за приемане |
 | 03 | [Архитектура](03-architecture.md) | Dev, DevOps | C4 диаграми, компоненти, потоци на данни, sequence диаграми |
 | 04 | [Модел на данните](04-data-model.md) | Dev | ERD, таблици, полета, индекси |
-| 05 | [API спецификация](05-api.md) | Dev, интегратори | REST endpoints, auth, webhooks · [openapi.yaml](../api/openapi.yaml) |
+| 05 | [API спецификация](05-api.md) | Dev, интегратори | REST endpoints, auth, webhooks · [openapi.yaml](https://github.com/kocetod/TVRestreamer/blob/main/TVRestreamer_Code/api/openapi.yaml) |
 | 06 | [UI/UX спецификация](06-ui-ux.md) | PM, Design, Frontend | Карта на екраните, wireframes, прототип, състояния |
 | 07 | [Нефункционални изисквания и сигурност](07-nfr-security.md) | Dev, DevOps | Производителност, капацитет, наличност, сигурност |
 | 08 | [Деплой и експлоатация](08-deployment-ops.md) | DevOps | Хардуер, мрежа, Docker, мониторинг, backup, runbooks |

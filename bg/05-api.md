@@ -1,6 +1,6 @@
 # 05 · API спецификация
 
-[← Индекс](00-README.md) · [English](../en/05-api.md) · Машинно четим договор: [openapi.yaml](../api/openapi.yaml)
+[← Индекс](00-README.md) · [English](../en/05-api.md) · Машинно четим договор: [openapi.yaml](https://github.com/kocetod/TVRestreamer/blob/main/TVRestreamer_Code/api/openapi.yaml)
 
 ## 1. Общи правила
 
