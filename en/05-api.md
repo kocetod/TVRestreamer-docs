@@ -68,6 +68,8 @@ POST /api/v1/streams
   "epgId": "btv.bg",
   "returnToPrimary": true,
   "returnAfterSec": 30,
+  "failoverTriggers": {"ccErrorsPerMin": 100, "minBitrateKbps": 300, "onNoVideo": true, "onNoAudio": true,
+                       "onScrambled": true, "holdSec": 5},
   "inputs": [
     {"priority": 1, "type": "HTTP_TS", "url": "http://provider-a/btv.ts", "timeoutSec": 5, "hotStandby": false},
     {"priority": 2, "type": "UDP", "url": "udp://239.10.0.3:1234", "options": {"iface": "eth1"}, "hotStandby": true}
@@ -117,13 +119,16 @@ GET /api/v1/streams/5b7d…/analyzer
   "windowMs": 5081,
   "services": [{"serviceId": 1, "name": "TVR test A", "provider": "TvRestream", "type": 1, "pmtPid": 4096, "pcrPid": 256,
                 "scrambled": false}],
-  "totals": {"packets": 129377, "ccErrors": 5, "transportErrors": 0, "syncLosses": 0, "psiErrors": 0}
+  "totals": {"packets": 129377, "ccErrors": 5, "transportErrors": 0, "syncLosses": 0, "psiErrors": 0, "sourceErrors": 0},
+  "sourceErrorsPerMin": 0
 }
 ```
 
 > The agent's TsSwitcher analyses the active input: bitrate of the whole TS and of every PID (5 s average), codecs and languages from the PMT, CC errors, scrambling. It comes with the channel status (every 5 s) and is kept in Redis for 30 s. `at: null` (and empty `pids`) = no data: the channel is stopped, still starting, or the agent does not report. 404 for an unknown channel.
 >
 > TVR-053 adds: `services` — the programs of the PAT with name, provider and type from the SDT (the HTTP-TS/UDP input keeps the source's names through the remux); per PID `ccErrorsTotal` (since the active input started), `serviceId`, `streamType` and `pcr` on PCR PIDs — interval (over 40 ms = repetition error), jumps without discontinuity_indicator, arrival jitter, drift in ppm (`null` for the first 60 s), as in ETSI TR 101 290; `totals` — packets, CC, transport errors, sync losses and PSI/SI errors since the input started; `windowMs` — the measurement window.
+>
+> TVR-054 adds: `sourceErrorsPerMin` and `totals.sourceErrors` — the corrupt packets the input FFmpeg finds in the source (`Packet corrupt`). The remux hides the source's CC gaps from the analyzer's counters, so they are counted separately; together with `ccErrorsPerMin` they are the condition of the `failoverTriggers.ccErrorsPerMin` trigger.
 
 **Channel log (TVR-023):**
 
