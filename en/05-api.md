@@ -41,7 +41,7 @@
 | POST | `/streams/{id}/actions/start` · `stop` · `restart` | Control (TVR-021): `start`/`stop` set `enabled` (kept across restarts), `restart` restarts the processes on the agent. 202 + the channel; 409 — `restart` of a stopped channel, without a node or with a disconnected node; 404 — unknown action | Operator+ |
 | POST | `/streams/{id}/actions/switch-input` | `{inputId, pin: bool}` — pin suspends the automation; the active input with pin=false = unpin; the status shows `status.inputPinned` (TVR-036) | Operator+ |
 | POST | `/streams/{id}/clone` | Clone | Operator+ |
-| GET | `/streams/{id}/analyzer` | Bitrate, PIDs with codecs and languages, CC errors (live, every 5 s; TVR-026) | Viewer+ |
+| GET | `/streams/{id}/analyzer` | Bitrate, services (SDT names), PIDs with codecs and languages, CC errors per PID, PCR checks (live, every 5 s; TVR-026, TVR-053) | Viewer+ |
 | GET | `/streams/{id}/metrics?from&to&step` | Time series (bitrate, CC, viewers) | Viewer+ |
 | GET | `/streams/{id}/events` | Event history, newest first: `FAILOVER`, `STATUS`, … Filters `type` (several), `from`, `to` (ISO-8601), `page`, `size` | Viewer+ |
 | GET | `/streams/{id}/logs?tail=500` | Last log lines from the agent (1–1000, TVR-023; SSE `/logs/stream` later) | Operator+ |
@@ -91,7 +91,7 @@ POST /api/v1/streams
 
 > The response contains the whole channel (inputs and outputs with `id`). `version` starts at 0 and grows by 1 with every change. `status` is the runtime state reported by the agent (TVR-020): `STARTING` → `ONLINE` (with `bitrateIn` in bits/s, `activeInputId`, `since`) or `OFFLINE`/`ERROR` with `lastError`; `STOPPED` when the channel is disabled or no report came in the last 30 s. `?status=` filters the list by it (an unknown value → 400). Errors: 400 with `errors:[{field, message}]` (e.g. `{"field": "inputs[0].url", "message": "Неподдържан протокол"}`), 409 for a taken slug or a stale `version`.
 
-**Analyzer (TVR-026):**
+**Analyzer (TVR-026, TVR-053):**
 
 ```json
 GET /api/v1/streams/5b7d…/analyzer
@@ -101,17 +101,29 @@ GET /api/v1/streams/5b7d…/analyzer
   "streamId": "5b7d…", "nodeId": "a12e…", "activeInputId": "2fc3…", "at": "2026-10-26T12:57:45.469Z",
   "bitrate": 2225493, "ccErrorsPerMin": 0, "scrambled": false,
   "pids": [
-    {"pid": 0,    "type": "PSI",   "codec": null,   "language": null, "bitrate": 12633,   "ccErrors": 0, "scrambled": false},
-    {"pid": 256,  "type": "VIDEO", "codec": "h264", "language": null, "bitrate": 2056561, "ccErrors": 0, "scrambled": false},
-    {"pid": 257,  "type": "AUDIO", "codec": "aac",  "language": "bul", "bitrate": 141021, "ccErrors": 0, "scrambled": false},
-    {"pid": 4096, "type": "PSI",   "codec": null,   "language": null, "bitrate": 12633,   "ccErrors": 0, "scrambled": false}
+    {"pid": 0,    "type": "PSI",   "codec": null,   "language": null, "bitrate": 12633,   "ccErrors": 0, "scrambled": false,
+     "ccErrorsTotal": 1, "serviceId": 0, "streamType": -1, "pcr": null},
+    {"pid": 256,  "type": "VIDEO", "codec": "h264", "language": null, "bitrate": 2056561, "ccErrors": 0, "scrambled": false,
+     "ccErrorsTotal": 2, "serviceId": 1, "streamType": 27,
+     "pcr": {"pcrs": 63, "intervalMaxMs": 80.0, "intervalAvgMs": 80.0, "jitterMs": 122.2, "driftPpm": 3.6,
+             "discontinuities": 1, "repetitionErrors": 1084}},
+    {"pid": 257,  "type": "AUDIO", "codec": "aac",  "language": "bul", "bitrate": 141021, "ccErrors": 0, "scrambled": false,
+     "ccErrorsTotal": 0, "serviceId": 1, "streamType": 15, "pcr": null},
+    {"pid": 4096, "type": "PSI",   "codec": null,   "language": null, "bitrate": 12633,   "ccErrors": 0, "scrambled": false,
+     "ccErrorsTotal": 1, "serviceId": 1, "streamType": -1, "pcr": null}
   ],
   "video": {"pid": 256, "type": "VIDEO", "codec": "h264", …},
-  "audio": [{"pid": 257, "type": "AUDIO", "codec": "aac", "language": "bul", …}]
+  "audio": [{"pid": 257, "type": "AUDIO", "codec": "aac", "language": "bul", …}],
+  "windowMs": 5081,
+  "services": [{"serviceId": 1, "name": "TVR test A", "provider": "TvRestream", "type": 1, "pmtPid": 4096, "pcrPid": 256,
+                "scrambled": false}],
+  "totals": {"packets": 129377, "ccErrors": 5, "transportErrors": 0, "syncLosses": 0, "psiErrors": 0}
 }
 ```
 
 > The agent's TsSwitcher analyses the active input: bitrate of the whole TS and of every PID (5 s average), codecs and languages from the PMT, CC errors, scrambling. It comes with the channel status (every 5 s) and is kept in Redis for 30 s. `at: null` (and empty `pids`) = no data: the channel is stopped, still starting, or the agent does not report. 404 for an unknown channel.
+>
+> TVR-053 adds: `services` — the programs of the PAT with name, provider and type from the SDT (the HTTP-TS/UDP input keeps the source's names through the remux); per PID `ccErrorsTotal` (since the active input started), `serviceId`, `streamType` and `pcr` on PCR PIDs — interval (over 40 ms = repetition error), jumps without discontinuity_indicator, arrival jitter, drift in ppm (`null` for the first 60 s), as in ETSI TR 101 290; `totals` — packets, CC, transport errors, sync losses and PSI/SI errors since the input started; `windowMs` — the measurement window.
 
 **Channel log (TVR-023):**
 
