@@ -224,7 +224,7 @@ sequenceDiagram
 | Транспорт | gRPC двупосочен поток, **инициира агентът** (работи зад NAT/firewall), mTLS |
 | Регистрация | Enrollment token → core издава клиентски сертификат за агента |
 | Съобщения core→agent | `DesiredState` (пълен snapshot + версия), `Command` (restart, switch input, kick HTTP-TS клиент) |
-| Съобщения agent→core | `Heartbeat` (5 сек), `NodeMetrics` (5 сек), `StreamStatus` (при промяна + на 5 сек), `StreamEvent`, `LogLines` (при абонамент) |
+| Съобщения agent→core | `Heartbeat` (5 сек), `NodeMetrics` (5 сек), `StreamStatus` (при промяна + на 5 сек), `StreamEvent`, `LogLines` (при абонамент), `RelayClients` (отворените HTTP-TS връзки, на 10 сек — TVR-056) |
 | При загуба на връзка | Агентът продължава с последното известно състояние и се свързва отново с exponential backoff |
 
 ## 8. Структура на кода (monorepo)

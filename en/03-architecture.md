@@ -224,7 +224,7 @@ sequenceDiagram
 | Transport | gRPC bidirectional stream, **agent-initiated** (works behind NAT/firewall), mTLS |
 | Enrollment | Enrollment token → core issues a client certificate for the agent |
 | core→agent messages | `DesiredState` (full snapshot + version), `Command` (restart, switch input, kick HTTP-TS client) |
-| agent→core messages | `Heartbeat` (5 s), `NodeMetrics` (5 s), `StreamStatus` (on change + every 5 s), `StreamEvent`, `LogLines` (on subscription) |
+| agent→core messages | `Heartbeat` (5 s), `NodeMetrics` (5 s), `StreamStatus` (on change + every 5 s), `StreamEvent`, `LogLines` (on subscription), `RelayClients` (open HTTP-TS connections, every 10 s — TVR-056) |
 | On connection loss | The agent keeps running with the last known state and reconnects with exponential backoff |
 
 ## 8. Code structure (monorepo)
