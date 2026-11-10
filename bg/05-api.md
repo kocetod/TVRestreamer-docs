@@ -1,6 +1,6 @@
 # 05 · API спецификация
 
-[← Индекс](00-README.md) · [English](../en/05-api.md) · Машинно четим договор: [openapi.yaml](https://github.com/kocetod/TVRestreamer/blob/main/TVRestreamer_Code/api/openapi.yaml)
+[← Индекс](00-README.md) · [English](../en/05-api.md) · Машинно четим договор: [openapi.yaml](https://github.com/kocetod/TVRestreamer/blob/main/api/openapi.yaml)
 
 ## 1. Общи правила
 
@@ -373,7 +373,7 @@ message StreamStatus {
 }
 ```
 
-Пълният договор е в кода: `TVRestreamer_Code/tvr-common/src/main/proto/tvr/agent/v1/agent.proto` (TVR-008). Java пакет `io.tvr.agent.proto.v1`; класовете се генерират при `./gradlew :tvr-common:build`.
+Пълният договор е в кода: `tvr-common/src/main/proto/tvr/agent/v1/agent.proto` (TVR-008). Java пакет `io.tvr.agent.proto.v1`; класовете се генерират при `./gradlew :tvr-common:build`.
 
 | Посока | Съобщение | Кога |
 |---|---|---|

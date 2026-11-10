@@ -15,7 +15,7 @@
 
 Извън това репо (в основното):
 
-- `TVRestreamer_Code/api/openapi.yaml` — REST API договор
+- `api/openapi.yaml` — REST API договор
 - `release-notes/` — бележки към изданията
 - `index.html` — портал, генериран с `python3 tools/build_docs_site.py`
 - `bg|en/12-development-plan.md` се генерира с `python3 Context/plan/build_plan_doc.py`

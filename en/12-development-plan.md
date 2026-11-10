@@ -2,7 +2,7 @@
 
 [← Index](00-README.md) · [Български](../bg/12-development-plan.md)
 
-> **Tracking board:** [TvRestream Board](https://claude.ai/artifact/URXdaur2HqQf2g5okUWsy5) — all 114 tickets, statuses, test checklists and notes. The board is the source of truth for status; this document describes the plan and the process.
+> **Tracking board:** [TvRestream Board](https://claude.ai/artifact/URXdaur2HqQf2g5okUWsy5) — all 119 tickets, statuses, test checklists and notes. The board is the source of truth for status; this document describes the plan and the process.
 
 ## 1. How we work
 
@@ -29,7 +29,7 @@ stateDiagram-v2
 
 1. **Pick.** On the board open a ticket labelled “ready” (all dependencies done) and press **“Pick and copy”**. The ticket moves to “Selected”.
 2. **Request.** Paste into the chat: `Имплементирай TVR-012` (“implement TVR-012”). Several at once also work.
-3. **Development.** Claude reads the ticket from the board, moves it to “In development”, writes the code in `TVRestreamer_Code` (branch `feature/TVR-012`) and runs the tests.
+3. **Development.** Claude reads the ticket from the board, moves it to “In development”, writes the code in the repository (branch `feature/TVR-012`) and runs the tests.
 4. **Hand-over.** Claude moves the ticket to “For test” and adds a note: what was done, which files, how to run it, extra checks.
 5. **Test.** You run the “How to test” checklist and tick the steps.
 6. **Decision.** All good → **Done**. Something fails → **Reopened** + a note (what you did, expected, actual, log). A new problem outside the ticket → **“+ Bug”**.
@@ -56,7 +56,7 @@ stateDiagram-v2
 
 | What | Where | Note |
 |---|---|---|
-| Code | Subfolder `TVRestreamer_Code` (IntelliJ/Gradle project, Git) | Claude writes there directly; IntelliJ for review |
+| Code | The repository root (IntelliJ/Gradle project, Git) | Claude writes there directly; IntelliJ for review |
 | Tools | Java 21, Docker Desktop, FFmpeg 7 (`brew install ffmpeg`), Node 20 | Check: `scripts/dev-check.sh` (TVR-002) |
 | Local services | PostgreSQL, Redis, Adminer, nginx in Docker Compose | TVR-003 |
 | Test streams | `scripts/test-streams.sh` (FFmpeg testsrc) | TVR-009; later real provider streams |
@@ -71,10 +71,10 @@ stateDiagram-v2
 |---|---|---|:-:|:-:|:-:|
 | **S0** · MVP | Foundation | The project builds, runs locally and has an admin login. | 10 | 7 | 1 |
 | **S1** · MVP | First stream: HTTP-TS → HLS | A stream created via the API runs on the agent and plays in VLC. | 13 | 11 | 1 |
-| **S2** · MVP | Failover and admin UI | The stream switches to a backup input on its own; streams are managed in the web panel. | 13 | 16 | 1–1,5 |
+| **S2** · MVP | Failover and admin UI | The stream switches to a backup input on its own; streams are managed in the web panel. | 14 | 16.5 | 1–1,5 |
 | **S3** · MVP | Subscribers and protected playback | A subscriber watches via a personal M3U link; a device over the limit is refused. | 14 | 13.5 | 1–1,5 |
 | **S4** · R1 | Astra-level streaming | Hot standby < 3 s, full analyzer, all inputs and outputs. | 18 | 20 | 1,5 |
-| **S5** · R1 | Operator-ready | Sessions, alerts, multiple servers, 2FA, audit, Xtream API, statistics. | 18 | 18 | 1,5–2 |
+| **S5** · R1 | Operator-ready | Sessions, alerts, multiple servers, 2FA, audit, Xtream API, statistics. | 22 | 22.5 | 1,5–2 |
 | **S6** · R1 | Production | Load and chaos tests pass; Ansible install; go-live. | 11 | 13 | 1–1,5 |
 | **R2** · R2 | Extensions | Webhooks, geo/IP, slate, automatic relocation, HA. | 12 | 14 | 3–4 |
 | **R3** · R3 | Future | DVB-S/S2, transcoding, billing — on demand. | 5 | 10 | — |
@@ -173,6 +173,7 @@ flowchart LR
 | `TVR-034` | UI: dashboard | Feature | M | M | TVR-031 |
 | `TVR-035` | Node metrics and Servers UI | Feature | M | M | TVR-017, TVR-007 |
 | `TVR-036` | Manual input switch (switch / pin) | Feature | M | S | TVR-027, TVR-033 |
+| `TVR-119` | Delete channels from the panel (one or many at once) | Feature | M | S | TVR-031 |
 
 ### 4.4 S3 · Subscribers and protected playback
 
@@ -242,8 +243,12 @@ flowchart LR
 | `TVR-079` | Full configuration export and import | Feature | S | S | TVR-038 |
 | `TVR-080` | Statistics and reports | Feature | S | M | TVR-066 |
 | `TVR-081` | Prometheus metrics | Feature | S | S | TVR-017 |
-| `TVR-082` | UI: Settings | Feature | M | M | TVR-068 |
+| `TVR-082` | Settings: every stream and network parameter in the panel | Feature | M | L | TVR-068, TVR-113, TVR-114 |
 | `TVR-083` | Subscriber CSV import/export and bulk extend | Feature | S | S | TVR-040 |
+| `TVR-115` | Panel: split the bundle (1.6 MB > the 1.5 MB limit) | Infra | S | S | TVR-007 |
+| `TVR-116` | Subscription expiry reminders: core and email | Feature | M | M | TVR-046, TVR-068 |
+| `TVR-117` | Expiry reminders: Telegram bot for subscribers | Feature | M | M | TVR-116 |
+| `TVR-118` | Expiry notice in the player | Feature | M | M | TVR-116, TVR-076 |
 
 ### 4.7 S6 · Production
 
@@ -299,14 +304,14 @@ flowchart LR
 | Epic | Name | Tickets | Stages |
 |---|---|:-:|---|
 | E1 | Foundation | 8 | S0, S3, S6 |
-| E2 | Streams | 28 | S0, S1, S2, S4, R2, R3 |
+| E2 | Streams | 29 | S0, S1, S2, S4, R2, R3 |
 | E3 | Failover | 9 | S2, S4, R2 |
 | E4 | Analyzer | 5 | S2, S4, R2 |
 | E5 | Subscribers & packages | 7 | S3, S5, R3 |
 | E6 | Protected playback | 10 | S3, S4, S5, R2 |
 | E7 | Playlists & EPG | 5 | S3, S5, S6 |
-| E8 | Dashboard & monitoring | 5 | S0, S2, S5 |
-| E9 | Alerts | 2 | S5 |
+| E8 | Dashboard & monitoring | 6 | S0, S2, S5 |
+| E9 | Alerts | 5 | S5 |
 | E10 | Cluster | 9 | S0, S1, S2, S5, R2 |
 | E11 | Admins & audit | 5 | S0, S3, S5, S6 |
 | E12 | Integrations | 3 | S5, R2, R3 |

@@ -17,7 +17,7 @@
 | 02 | [Functional specification](02-functional-spec.md) | PM, Dev, QA | All modules and features with IDs, user stories, acceptance criteria |
 | 03 | [Architecture](03-architecture.md) | Dev, DevOps | C4 diagrams, components, data flows, sequence diagrams |
 | 04 | [Data model](04-data-model.md) | Dev | ERD, tables, fields, indexes |
-| 05 | [API specification](05-api.md) | Dev, integrators | REST endpoints, auth, webhooks · [openapi.yaml](https://github.com/kocetod/TVRestreamer/blob/main/TVRestreamer_Code/api/openapi.yaml) |
+| 05 | [API specification](05-api.md) | Dev, integrators | REST endpoints, auth, webhooks · [openapi.yaml](https://github.com/kocetod/TVRestreamer/blob/main/api/openapi.yaml) |
 | 06 | [UI/UX specification](06-ui-ux.md) | PM, Design, Frontend | Screen map, wireframes, prototype, states |
 | 07 | [Non-functional requirements & security](07-nfr-security.md) | Dev, DevOps | Performance, capacity, availability, security |
 | 08 | [Deployment & operations](08-deployment-ops.md) | DevOps | Hardware, network, Docker, monitoring, backup, runbooks |

@@ -15,7 +15,7 @@ This repo is used as the `docs/` git submodule of [kocetod/TVRestreamer](https:/
 
 Kept in the main repo:
 
-- `TVRestreamer_Code/api/openapi.yaml` — REST API contract
+- `api/openapi.yaml` — REST API contract
 - `release-notes/` — release notes
 - `index.html` — portal, generated with `python3 tools/build_docs_site.py`
 - `bg|en/12-development-plan.md` is generated with `python3 Context/plan/build_plan_doc.py`
